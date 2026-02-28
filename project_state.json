@@ -1,0 +1,243 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 7,
+  "summary": "CrisisConnect – AI Emergency Response & Resource Mapper web app. Detects user location, shows nearest hospitals, available blood donors, sends emergency alerts to nearby volunteers, and includes an AI chatbot for first-aid guidance. Features an SOS button (accessible before and after login) with extraordinary/advanced features. Tech stack: React/Tailwind frontend, Node.js/Firebase backend, Google Maps API, OpenAI API.",
+  "architectural_notes": [
+    "Frontend: React with Tailwind CSS",
+    "Backend: Node.js with Firebase (Firestore + Auth)",
+    "Maps: Google Maps API for location and resource mapping",
+    "AI: OpenAI API for first-aid chatbot",
+    "SOS button must be accessible on all pages regardless of auth state",
+    "SOS pre-login: triggers emergency call/dial to emergency services; SOS post-login: notifies user-defined emergency contacts + emergency services"
+  ],
+  "known_issues": [
+    "Map page does not correctly show nearby hospitals with user location tracking and distance calculation"
+  ],
+  "isFixRequest": false,
+  "existing_features": [
+    {
+      "id": "feature-design-and-apply-a-bold-emergency-response-visual-theme-deep-charcoal-dark-background-vibrant-red-and-amber-accent-colors-clean-sans-serif-typography-card-based-layout-with-glowing-alert-indicators-and-a-persistent-top-navigation-bar-showing-the-app-logo-and-a-prominent-sos-button",
+      "title": "Design and apply a bold emergency-response visual theme: deep charcoal dark background, vibrant red and amber accent colors, clean sans-serif typography, card-based layout with glowing alert indicators, and a persistent top navigation bar showing the app logo and a prominent SOS button.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-a-persistent-highly-visible-sos-emergency-button-accessible-on-every-page-both-before-and-after-login-when-triggered-it-captures-the-user-s-current-geolocation-browser-geolocation-api-and-records-an-sos-event-in-the-backend-with-timestamp-coordinates-and-optional-user-identity-display-a-confirmation-modal-with-countdown-and-cancel-option",
+      "title": "Implement a persistent, highly visible SOS Emergency Button accessible on every page both before and after login. When triggered, it captures the user's current geolocation (browser Geolocation API) and records an SOS event in the backend with timestamp, coordinates, and optional user identity. Display a confirmation modal with countdown and cancel option.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-user-authentication-register-and-login-using-internet-identity-show-a-login-signup-page-with-a-clear-call-to-action-after-authentication-display-the-user-s-principal-id-and-a-logout-option-in-the-navigation-bar",
+      "title": "Implement user authentication (register and login) using Internet Identity. Show a login/signup page with a clear call-to-action. After authentication, display the user's principal ID and a logout option in the navigation bar.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-real-time-emergency-resource-dashboard-as-the-main-page-after-login-display-summary-cards-for-total-registered-hospitals-available-hospital-beds-count-registered-blood-donors-by-blood-type-and-active-volunteer-count-cards-should-update-when-backend-data-changes",
+      "title": "Build a real-time Emergency Resource Dashboard as the main page after login. Display summary cards for: total registered hospitals, available hospital beds count, registered blood donors by blood type, and active volunteer count. Cards should update when backend data changes.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-a-hospital-finder-feature-display-a-list-of-registered-hospitals-with-name-address-distance-from-user-s-location-available-bed-count-and-emergency-contact-number-allow-filtering-by-distance-and-availability-hospitals-are-stored-and-retrieved-from-the-backend",
+      "title": "Implement a Hospital Finder feature: display a list of registered hospitals with name, address, distance from user's location, available bed count, and emergency contact number. Allow filtering by distance and availability. Hospitals are stored and retrieved from the backend.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-a-blood-donor-registry-allow-users-to-register-as-blood-donors-with-fields-name-blood-type-a-a-b-b-ab-ab-o-o-city-and-contact-number-display-a-searchable-list-of-donors-filterable-by-blood-type-and-city-store-all-donor-records-in-the-backend",
+      "title": "Implement a Blood Donor Registry: allow users to register as blood donors with fields: name, blood type (A+, A-, B+, B-, AB+, AB-, O+, O-), city, and contact number. Display a searchable list of donors filterable by blood type and city. Store all donor records in the backend.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-a-volunteer-management-system-allow-users-to-register-as-emergency-volunteers-with-name-skills-first-aid-driving-medical-etc-location-city-and-availability-status-active-inactive-display-a-volunteer-directory-with-filtering-by-skill-and-status-store-all-volunteer-records-in-the-backend",
+      "title": "Implement a Volunteer Management system: allow users to register as emergency volunteers with name, skills (first-aid, driving, medical, etc.), location (city), and availability status (active/inactive). Display a volunteer directory with filtering by skill and status. Store all volunteer records in the backend.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-an-emergency-alert-broadcasting-feature-authenticated-users-can-post-an-emergency-alert-with-a-type-flood-accident-medical-fire-other-description-and-location-alerts-are-stored-in-the-backend-with-timestamp-and-user-info-display-a-live-alert-feed-on-the-dashboard-sorted-by-most-recent-with-color-coded-severity-badges",
+      "title": "Implement an Emergency Alert Broadcasting feature: authenticated users can post an emergency alert with a type (flood, accident, medical, fire, other), description, and location. Alerts are stored in the backend with timestamp and user info. Display a live alert feed on the dashboard sorted by most recent, with color-coded severity badges.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-an-ai-powered-first-aid-chatbot-panel-as-a-floating-chat-widget-accessible-from-every-page-the-chatbot-uses-a-rule-based-decision-tree-approach-no-external-ai-api-to-guide-users-through-first-aid-steps-for-common-emergencies-cpr-choking-bleeding-burns-fractures-and-seizures-the-widget-opens-as-a-slide-over-panel-with-a-chat-interface",
+      "title": "Build an AI-powered First Aid Chatbot panel as a floating chat widget accessible from every page. The chatbot uses a rule-based / decision-tree approach (no external AI API) to guide users through first-aid steps for common emergencies: CPR, choking, bleeding, burns, fractures, and seizures. The widget opens as a slide-over panel with a chat interface.",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-an-interactive-nearest-resources-map-page-using-leaflet-js-open-source-no-api-key-required-that-plots-hospitals-and-blood-donor-locations-as-map-markers-user-s-geolocation-is-shown-as-a-distinct-marker-clicking-a-marker-shows-a-popup-with-the-resource-details",
+      "title": "Implement an interactive Nearest Resources Map page using Leaflet.js (open-source, no API key required) that plots hospitals and blood donor locations as map markers. User's geolocation is shown as a distinct marker. Clicking a marker shows a popup with the resource details.",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-resourcemappage-to-correctly-request-and-track-the-user-s-geolocation-using-the-browser-geolocation-api-via-the-existing-usegeolocation-hook-on-page-load-automatically-trigger-location-detection-and-display-a-loading-state-while-acquiring-coordinates-if-geolocation-is-denied-or-unavailable-show-a-clear-error-message-prompting-the-user-to-enable-location-access",
+      "title": "Fix the ResourceMapPage to correctly request and track the user's geolocation using the browser Geolocation API (via the existing useGeolocation hook). On page load, automatically trigger location detection and display a loading state while acquiring coordinates. If geolocation is denied or unavailable, show a clear error message prompting the user to enable location access.",
+      "reqIds": [
+        "REQ-12"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-on-the-resourcemappage-after-obtaining-the-user-s-geolocation-calculate-the-distance-from-the-user-s-coordinates-to-each-hospital-using-the-existing-haversine-utility-frontend-src-utils-haversine-ts-sort-hospital-markers-by-distance-nearest-first-display-each-hospital-as-a-map-marker-with-a-popup-showing-hospital-name-address-available-beds-contact-number-and-the-calculated-distance-formatted-via-the-existing-formatdistance-helper",
+      "title": "On the ResourceMapPage, after obtaining the user's geolocation, calculate the distance from the user's coordinates to each hospital using the existing haversine utility (frontend/src/utils/haversine.ts). Sort hospital markers by distance (nearest first). Display each hospital as a map marker with a popup showing: hospital name, address, available beds, contact number, and the calculated distance (formatted via the existing formatDistance helper).",
+      "reqIds": [
+        "REQ-13"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-sidebar-or-overlay-panel-on-the-resourcemappage-that-lists-nearby-hospitals-sorted-by-distance-from-the-user-s-location-each-list-item-should-show-the-hospital-name-available-beds-color-coded-by-availability-and-the-distance-clicking-a-list-item-should-pan-zoom-the-map-to-that-hospital-s-marker-and-open-its-popup-this-panel-should-be-scrollable-and-styled-consistently-with-the-existing-emergency-dark-theme",
+      "title": "Add a sidebar or overlay panel on the ResourceMapPage that lists nearby hospitals sorted by distance from the user's location. Each list item should show the hospital name, available beds (color-coded by availability), and the distance. Clicking a list item should pan/zoom the map to that hospital's marker and open its popup. This panel should be scrollable and styled consistently with the existing emergency dark theme.",
+      "reqIds": [
+        "REQ-14"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-leaflet-map-on-resourcemappage-initializes-correctly-with-a-valid-center-coordinate-when-the-user-s-geolocation-is-available-re-center-the-map-to-the-user-s-coordinates-if-geolocation-is-not-yet-available-initialize-the-map-with-a-sensible-default-center-e-g-0-0-or-a-known-fallback-and-re-center-once-location-is-acquired-fix-any-issues-with-the-map-not-rendering-tiles-or-markers-due-to-improper-initialization-or-container-sizing",
+      "title": "Ensure the Leaflet map on ResourceMapPage initializes correctly with a valid center coordinate. When the user's geolocation is available, re-center the map to the user's coordinates. If geolocation is not yet available, initialize the map with a sensible default center (e.g., 0,0 or a known fallback) and re-center once location is acquired. Fix any issues with the map not rendering tiles or markers due to improper initialization or container sizing.",
+      "reqIds": [
+        "REQ-15"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-when-the-sos-button-is-triggered-by-an-unauthenticated-pre-login-user-immediately-prompt-the-browser-to-initiate-a-phone-call-to-the-universal-emergency-number-e-g-tel-112-or-tel-911-display-a-modal-with-a-visible-call-emergency-services-button-rendered-as-an-a-href-tel-112-link-so-the-user-can-connect-directly-to-emergency-services-without-needing-an-account-the-existing-countdown-cancel-flow-should-still-capture-geolocation-and-record-the-sos-event-in-the-backend-anonymously-but-the-primary-cta-must-be-the-emergency-call-link",
+      "title": "When the SOS button is triggered by an unauthenticated (pre-login) user, immediately prompt the browser to initiate a phone call to the universal emergency number (e.g., tel:112 or tel:911). Display a modal with a visible 'Call Emergency Services' button (rendered as an <a href='tel:112'> link) so the user can connect directly to emergency services without needing an account. The existing countdown/cancel flow should still capture geolocation and record the SOS event in the backend (anonymously), but the primary CTA must be the emergency call link.",
+      "reqIds": [
+        "REQ-16"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-an-emergency-contacts-management-feature-for-authenticated-users-provide-a-dedicated-page-or-settings-section-accessible-from-the-navigation-bar-or-user-profile-area-where-a-logged-in-user-can-add-view-and-remove-emergency-contacts-each-contact-record-must-include-full-name-phone-number-and-relationship-e-g-family-friend-colleague-store-emergency-contacts-in-the-backend-associated-with-the-authenticated-user-s-principal-id",
+      "title": "Add an Emergency Contacts management feature for authenticated users. Provide a dedicated page or settings section (accessible from the navigation bar or user profile area) where a logged-in user can add, view, and remove emergency contacts. Each contact record must include: full name, phone number, and relationship (e.g., family, friend, colleague). Store emergency contacts in the backend associated with the authenticated user's principal ID.",
+      "reqIds": [
+        "REQ-17"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-when-an-authenticated-user-triggers-the-sos-button-after-the-countdown-completes-1-retrieve-the-user-s-stored-emergency-contacts-from-the-backend-and-display-them-in-the-sos-confirmation-modal-as-a-list-of-notify-entries-showing-each-contact-s-name-and-phone-number-as-a-tel-call-link-2-also-display-a-prominent-call-emergency-services-112-tel-link-button-alongside-the-contacts-the-sos-event-must-still-be-recorded-in-the-backend-with-timestamp-geolocation-coordinates-and-the-authenticated-user-s-identity-make-it-clear-in-the-ui-which-contacts-will-be-notified-via-manual-call-links-since-automated-sms-push-is-not-supported-and-provide-a-direct-dial-button-for-each",
+      "title": "When an authenticated user triggers the SOS button, after the countdown completes: (1) retrieve the user's stored emergency contacts from the backend and display them in the SOS confirmation modal as a list of 'Notify' entries showing each contact's name and phone number as a tel: call link; (2) also display a prominent 'Call Emergency Services (112)' tel: link button alongside the contacts. The SOS event must still be recorded in the backend with timestamp, geolocation coordinates, and the authenticated user's identity. Make it clear in the UI which contacts will be notified (via manual call links, since automated SMS/push is not supported) and provide a direct dial button for each.",
+      "reqIds": [
+        "REQ-18"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "User location detection and nearest hospital finder",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Available hospital beds and blood donor availability display",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Emergency alert system to notify nearby volunteers",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "AI chatbot for real-time first-aid guidance (OpenAI API)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "SOS button accessible both before and after login",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Google Maps integration for live resource mapping",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "User authentication (login/signup) system",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "Blood donor registration and search functionality",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-9",
+      "summary": "Real-time dashboard for emergency resources and volunteer coordination",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-20",
+      "summary": "Implement the Motoko backend actor with stable storage for: hospitals (id, name, address, lat, lng, bedsAvailable, contact), blood donors (id, name, bloodType, city, contact, registeredAt), volunteers (id, name, skills, city, isActive), SOS events (id, userId, lat, lng, timestamp), and emergency alerts (id, authorId, alertType, description, location, timestamp). Expose CRUD query and update functions for each entity.",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-21",
+      "summary": "SOS button pre-login: trigger emergency call (e.g., dial emergency number or prompt call to emergency services)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-22",
+      "summary": "SOS button post-login: allow users to add emergency contacts/members; on SOS trigger, notify those specific persons AND emergency dial numbers",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-26",
+      "summary": "Extend the backend Motoko actor to support emergency contacts storage. Add a stable data structure to store emergency contacts keyed by user principal, where each contact has: id (generated), ownerPrincipal, name (Text), phone (Text), relationship (Text), and createdAt (Int timestamp). Expose the following update/query functions: addEmergencyContact (authenticated, adds a contact for the caller's principal), removeEmergencyContact (authenticated, removes by contact id for the caller's principal), getMyEmergencyContacts (authenticated query, returns the caller's contacts), and getEmergencyContactsByPrincipal (admin/internal query, returns contacts for a given principal for use during SOS dispatch).",
+      "reqIds": [
+        "REQ-19"
+      ],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "CrisisConnect",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

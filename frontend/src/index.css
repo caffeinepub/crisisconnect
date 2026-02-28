@@ -1,0 +1,155 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Emergency dark theme */
+    --background: 0.14 0.01 260;
+    --foreground: 0.95 0.01 260;
+    --card: 0.18 0.015 260;
+    --card-foreground: 0.95 0.01 260;
+    --popover: 0.2 0.015 260;
+    --popover-foreground: 0.95 0.01 260;
+    --primary: 0.55 0.22 25;
+    --primary-foreground: 0.98 0 0;
+    --secondary: 0.22 0.015 260;
+    --secondary-foreground: 0.9 0.01 260;
+    --muted: 0.22 0.015 260;
+    --muted-foreground: 0.6 0.02 260;
+    --accent: 0.7 0.18 65;
+    --accent-foreground: 0.1 0.01 260;
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+    --border: 0.28 0.02 260;
+    --input: 0.25 0.02 260;
+    --ring: 0.55 0.22 25;
+    --chart-1: 0.55 0.22 25;
+    --chart-2: 0.7 0.18 65;
+    --chart-3: 0.55 0.18 220;
+    --chart-4: 0.55 0.2 145;
+    --chart-5: 0.65 0.2 300;
+    --sidebar: 0.16 0.015 260;
+    --sidebar-foreground: 0.95 0.01 260;
+    --sidebar-primary: 0.55 0.22 25;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.22 0.015 260;
+    --sidebar-accent-foreground: 0.9 0.01 260;
+    --sidebar-border: 0.28 0.02 260;
+    --sidebar-ring: 0.55 0.22 25;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .glow-red {
+    box-shadow: 0 0 20px oklch(0.55 0.22 25 / 0.4), 0 0 40px oklch(0.55 0.22 25 / 0.2);
+  }
+  .glow-amber {
+    box-shadow: 0 0 20px oklch(0.7 0.18 65 / 0.4), 0 0 40px oklch(0.7 0.18 65 / 0.2);
+  }
+  .glow-blue {
+    box-shadow: 0 0 20px oklch(0.55 0.18 220 / 0.4), 0 0 40px oklch(0.55 0.18 220 / 0.2);
+  }
+  .glow-green {
+    box-shadow: 0 0 20px oklch(0.55 0.2 145 / 0.4), 0 0 40px oklch(0.55 0.2 145 / 0.2);
+  }
+  .card-glass {
+    background: oklch(0.18 0.015 260 / 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(0.28 0.02 260);
+  }
+  .nav-glass {
+    background: oklch(0.14 0.01 260 / 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid oklch(0.28 0.02 260);
+  }
+}
+
+/* SOS pulse animation */
+@keyframes sos-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(0.55 0.22 25 / 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px oklch(0.55 0.22 25 / 0);
+    transform: scale(1.03);
+  }
+}
+
+@keyframes ping-slow {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes status-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.sos-pulse {
+  animation: sos-pulse 1.5s ease-in-out infinite;
+}
+
+.ping-slow {
+  animation: ping-slow 2s ease-out infinite;
+}
+
+.status-blink {
+  animation: status-blink 1s ease-in-out infinite;
+}
+
+/* Leaflet map dark theme */
+.leaflet-container {
+  background: oklch(0.14 0.01 260) !important;
+  border-radius: 0.75rem;
+}
+
+.leaflet-popup-content-wrapper {
+  background: oklch(0.2 0.015 260) !important;
+  color: oklch(0.95 0.01 260) !important;
+  border: 1px solid oklch(0.28 0.02 260) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 4px 20px oklch(0 0 0 / 0.5) !important;
+}
+
+.leaflet-popup-tip {
+  background: oklch(0.2 0.015 260) !important;
+}
+
+.leaflet-popup-close-button {
+  color: oklch(0.6 0.02 260) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: oklch(0.18 0.015 260);
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.35 0.02 260);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.45 0.02 260);
+}

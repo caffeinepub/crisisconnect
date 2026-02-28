@@ -1,0 +1,106 @@
+{
+  "kind": "build_request",
+  "title": "SOS Emergency Call (pre-login) & Emergency Contacts Notification (post-login)",
+  "projectName": "CrisisConnect",
+  "priority": "high",
+  "requirements": [
+    {
+      "id": "REQ-16",
+      "text": "When the SOS button is triggered by an unauthenticated (pre-login) user, immediately prompt the browser to initiate a phone call to the universal emergency number (e.g., tel:112 or tel:911). Display a modal with a visible 'Call Emergency Services' button (rendered as an <a href='tel:112'> link) so the user can connect directly to emergency services without needing an account. The existing countdown/cancel flow should still capture geolocation and record the SOS event in the backend (anonymously), but the primary CTA must be the emergency call link.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "before login the sos click means it must do call for emergencies"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Unauthenticated users who click SOS see a modal with a clearly labeled 'Call Emergency Services (112)' or equivalent tel: link button.",
+        "Tapping/clicking the tel: link initiates a phone call on mobile devices and opens the dialer on desktop.",
+        "The SOS event is still recorded in the backend with geolocation coordinates and a null/anonymous user identity.",
+        "The existing 5-second countdown and cancel option remain functional.",
+        "No login is required to access this flow."
+      ]
+    },
+    {
+      "id": "REQ-17",
+      "text": "Add an Emergency Contacts management feature for authenticated users. Provide a dedicated page or settings section (accessible from the navigation bar or user profile area) where a logged-in user can add, view, and remove emergency contacts. Each contact record must include: full name, phone number, and relationship (e.g., family, friend, colleague). Store emergency contacts in the backend associated with the authenticated user's principal ID.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "after login we should add the member for emergency situation"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Authenticated users can navigate to an 'Emergency Contacts' section.",
+        "A form allows adding a contact with name, phone number, and relationship fields — all required.",
+        "Submitted contacts are persisted in the backend under the authenticated user's principal.",
+        "The contacts list is displayed with the ability to remove any contact.",
+        "Unauthenticated users cannot access or modify emergency contacts."
+      ]
+    },
+    {
+      "id": "REQ-18",
+      "text": "When an authenticated user triggers the SOS button, after the countdown completes: (1) retrieve the user's stored emergency contacts from the backend and display them in the SOS confirmation modal as a list of 'Notify' entries showing each contact's name and phone number as a tel: call link; (2) also display a prominent 'Call Emergency Services (112)' tel: link button alongside the contacts. The SOS event must still be recorded in the backend with timestamp, geolocation coordinates, and the authenticated user's identity. Make it clear in the UI which contacts will be notified (via manual call links, since automated SMS/push is not supported) and provide a direct dial button for each.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "after login we should add the member for emergency situation after that click on sos means it notify to that specifc persons as well as to the emergency dials"
+        ]
+      },
+      "acceptanceCriteria": [
+        "After the SOS countdown, the modal shows a list of all stored emergency contacts with a 'Call [Name]' tel: link for each.",
+        "A separate 'Call Emergency Services (112)' tel: link button is prominently shown in the same modal.",
+        "The SOS event is recorded in the backend with the user's principal, timestamp, and geolocation.",
+        "If the user has no emergency contacts added, a message prompts them to add contacts and still shows the emergency dial button.",
+        "All tel: links open the phone dialer on mobile and desktop.",
+        "The modal UI is consistent with the existing emergency dark theme (crisis-red/crisis-amber accent colors)."
+      ]
+    },
+    {
+      "id": "REQ-19",
+      "text": "Extend the backend Motoko actor to support emergency contacts storage. Add a stable data structure to store emergency contacts keyed by user principal, where each contact has: id (generated), ownerPrincipal, name (Text), phone (Text), relationship (Text), and createdAt (Int timestamp). Expose the following update/query functions: addEmergencyContact (authenticated, adds a contact for the caller's principal), removeEmergencyContact (authenticated, removes by contact id for the caller's principal), getMyEmergencyContacts (authenticated query, returns the caller's contacts), and getEmergencyContactsByPrincipal (admin/internal query, returns contacts for a given principal for use during SOS dispatch).",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "after login we should add the member for emergency situation",
+          "it notify to that specifc persons as well as to the emergency dials"
+        ]
+      },
+      "acceptanceCriteria": [
+        "addEmergencyContact persists a contact record linked to the caller's principal and returns the new contact.",
+        "removeEmergencyContact deletes the matching contact only if it belongs to the caller's principal.",
+        "getMyEmergencyContacts returns all contacts for the authenticated caller.",
+        "Emergency contact data persists across canister upgrades via stable storage.",
+        "All mutations reject anonymous callers with an appropriate error."
+      ]
+    }
+  ],
+  "constraints": [
+    "Do not integrate any third-party SMS, push notification, or email service — contact notification must be implemented as tel: call links only.",
+    "Do not modify files listed in frontend.immutablePaths.",
+    "All backend logic must remain in the single Motoko actor (backend/main.mo).",
+    "Emergency contacts must be scoped to and accessible only by the owning user's principal."
+  ],
+  "nonGoals": [
+    "Automated SMS or push notifications to emergency contacts.",
+    "Server-side dialing or automated calling integration.",
+    "Sharing or broadcasting emergency contacts to other users.",
+    "Modifying the existing geolocation capture or countdown timer logic beyond what is required for these features."
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

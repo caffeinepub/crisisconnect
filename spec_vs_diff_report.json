@@ -1,0 +1,46 @@
+{
+  "kind": "spec_vs_diff_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-28T05:01:27.506Z",
+  "summary": "The diff implements all four requirements (REQ-16 through REQ-19) with substantial coverage. The backend Motoko actor adds stable emergency contacts storage and the required CRUD functions. The frontend adds an EmergencyContactsPage, navigation link, and updates the SOSModal to show tel: call links for both authenticated and unauthenticated users. A few minor gaps exist: the getEmergencyContactsByPrincipal function is not confirmed in the truncated backend, and the SOS event for unauthenticated users may not explicitly record a null/anonymous identity. Overall the implementation is largely complete.",
+  "missing_requirements": [
+    {
+      "id": "REQ-19",
+      "requirement": "Expose getEmergencyContactsByPrincipal (admin/internal query, returns contacts for a given principal for use during SOS dispatch).",
+      "reason": "The backend/main.mo diff is truncated and only shows addEmergencyContact, removeEmergencyContact, and getMyEmergencyContacts referenced indirectly. getEmergencyContactsByPrincipal is never mentioned in the visible diff content or file summaries, so its presence cannot be confirmed.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-16",
+      "requirement": "The SOS event is still recorded in the backend with geolocation coordinates and a null/anonymous user identity when triggered by an unauthenticated user.",
+      "reason": "The SOSModal's handleSendSOS passes userId: undefined to recordSOS. Whether the backend treats this as an anonymous/null identity and persists the event accordingly is not confirmed in the visible diff. The backend function signature for recordSOS is not shown in the truncated main.mo, so anonymous recording cannot be fully verified.",
+      "evidence": [
+        "frontend/src/components/sos/SOSModal.tsx",
+        "backend/main.mo"
+      ]
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "A migration module (backend/migration.mo) was introduced as a separate file to handle canister upgrade state migration.",
+      "reason": "The build request only asked for stable storage for emergency contacts persisting across upgrades. It did not request a separate migration module file. While this supports the upgrade requirement, the explicit creation of migration.mo as a dedicated module was not specified.",
+      "evidence": [
+        "backend/migration.mo"
+      ]
+    }
+  ],
+  "confidence": 0.72,
+  "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
+    "frontend-file-summaries.txt",
+    "frontend/src/App.tsx",
+    "frontend/src/components/layout/AppLayout.tsx",
+    "frontend/src/components/sos/SOSModal.tsx",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/EmergencyContactsPage.tsx",
+    "project_state.json"
+  ]
+}
