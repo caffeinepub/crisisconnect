@@ -10,11 +10,16 @@ import List "mo:core/List";
 import Principal "mo:core/Principal";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+import Storage "blob-storage/Storage";
+import MixinStorage "blob-storage/Mixin";
+
+
 
 actor {
-  // Include authorization
+  // Include core components
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
+  include MixinStorage();
 
   // Types
   public type UserProfile = {
@@ -36,10 +41,12 @@ actor {
   public type BloodDonor = {
     id : Nat;
     name : Text;
-    bloodType : Text;
     city : Text;
+    verifiedBloodType : Text;
     contact : Text;
     registeredAt : Time.Time;
+    proofText : Text;
+    detectedBloodType : Text;
   };
 
   public type Volunteer = {
@@ -48,6 +55,7 @@ actor {
     skills : [Text];
     city : Text;
     isActive : Bool;
+    proofText : Text;
   };
 
   public type SOSEvent = {
@@ -78,7 +86,6 @@ actor {
 
   var nextId = 1;
 
-  // Persistent stores
   let userProfiles = Map.empty<Principal, UserProfile>();
   let hospitals = Map.empty<Nat, Hospital>();
   let bloodDonors = Map.empty<Nat, BloodDonor>();
@@ -86,6 +93,8 @@ actor {
   let sosEvents = Map.empty<Nat, SOSEvent>();
   let emergencyAlerts = Map.empty<Nat, EmergencyAlert>();
   let emergencyContacts = Map.empty<Principal, List.List<EmergencyContact>>();
+
+  let galleryItems = Map.empty<Nat, Text>();
 
   func getNextId() : Nat {
     let id = nextId;
@@ -95,7 +104,6 @@ actor {
 
   // ── User Profile ──────────────────────────────────────────────────────────
 
-  /// Get the calling user's own profile. Requires authenticated user.
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can get their profile");
@@ -103,7 +111,6 @@ actor {
     userProfiles.get(caller);
   };
 
-  /// Save / update the calling user's own profile. Requires authenticated user.
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can save their profile");
@@ -111,7 +118,6 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  /// Fetch any user's profile. Users can only view their own; admins can view anyone's.
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
@@ -121,7 +127,6 @@ actor {
 
   // ── Hospital CRUD ─────────────────────────────────────────────────────────
 
-  /// Add a hospital. Admin only.
   public shared ({ caller }) func addHospital(hospital : Hospital) : async Nat {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can add hospitals");
@@ -132,7 +137,6 @@ actor {
     id;
   };
 
-  /// Update an existing hospital. Admin only.
   public shared ({ caller }) func updateHospital(hospital : Hospital) : async () {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can update hospitals");
@@ -140,43 +144,54 @@ actor {
     hospitals.add(hospital.id, hospital);
   };
 
-  /// Get all hospitals. Public read.
   public query func getHospitals() : async [Hospital] {
     hospitals.values().toArray();
   };
 
-  /// Get hospitals sorted by proximity (distance calculation done client-side).
-  /// Public read.
   public query func findHospitalsByDistance(lat : Float, lng : Float) : async [Hospital] {
     hospitals.values().toArray();
   };
 
   // ── Blood Donor CRUD ──────────────────────────────────────────────────────
 
-  /// Register as a blood donor. Requires authenticated user.
-  public shared ({ caller }) func registerBloodDonor(donor : BloodDonor) : async Nat {
+  public shared ({ caller }) func addBloodDonor(
+    name : Text,
+    city : Text,
+    contact : Text,
+    proofText : Text,
+    detectedBloodType : Text,
+  ) : async {
+    #success : Nat;
+    #error : Text;
+  } {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can register as donors");
+      return #error("Unauthorized: Only users can register as donors");
     };
-    let id = getNextId();
-    let newDonor = { donor with id };
-    bloodDonors.add(id, newDonor);
-    id;
+    let newId = getNextId();
+    let newDonor = {
+      id = newId;
+      name;
+      city;
+      verifiedBloodType = detectedBloodType;
+      contact;
+      registeredAt = Time.now();
+      proofText;
+      detectedBloodType;
+    };
+    bloodDonors.add(newId, newDonor);
+    #success(newId);
   };
 
-  /// Get all blood donors. Public read.
   public query func getBloodDonors() : async [BloodDonor] {
     bloodDonors.values().toArray();
   };
 
-  /// Get donors filtered by blood type. Public read.
   public query func getDonorsByBloodType(bloodType : Text) : async [BloodDonor] {
-    bloodDonors.values().toArray().filter(func(d : BloodDonor) : Bool { d.bloodType == bloodType });
+    bloodDonors.values().toArray().filter(func(d : BloodDonor) : Bool { d.verifiedBloodType == bloodType });
   };
 
   // ── Volunteer CRUD ────────────────────────────────────────────────────────
 
-  /// Register as a volunteer. Requires authenticated user.
   public shared ({ caller }) func registerVolunteer(volunteer : Volunteer) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can register as volunteers");
@@ -187,25 +202,20 @@ actor {
     id;
   };
 
-  /// Get all volunteers. Public read.
   public query func getVolunteers() : async [Volunteer] {
     volunteers.values().toArray();
   };
 
   // ── SOS Events ────────────────────────────────────────────────────────────
 
-  /// Record an SOS event. Accessible to everyone including unauthenticated
-  /// users because SOS must work before login.
   public shared ({ caller }) func recordSOS(sos : SOSEvent) : async Nat {
     let id = getNextId();
-    // Capture the actual caller principal (anonymous or authenticated).
     let userId : ?Principal = if (caller.isAnonymous()) { null } else { ?caller };
     let newSos = { sos with id; userId };
     sosEvents.add(id, newSos);
     id;
   };
 
-  /// Get all SOS events. Admin only (sensitive location data).
   public query ({ caller }) func getSOSEvents() : async [SOSEvent] {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can view SOS events");
@@ -213,9 +223,8 @@ actor {
     sosEvents.values().toArray();
   };
 
-  // ── Emergency Alerts ──────────────────────────────────────────────────────
+  // ── Emergency Alerts ─────────────────────────────────────────────────────-
 
-  /// Post an emergency alert. Requires authenticated user.
   public shared ({ caller }) func postEmergencyAlert(alert : EmergencyAlert) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Must be logged in to post alerts");
@@ -227,22 +236,19 @@ actor {
     id;
   };
 
-  /// Get all emergency alerts sorted by most recent first. Public read.
   public query func getEmergencyAlerts() : async [EmergencyAlert] {
     let alerts = emergencyAlerts.toArray().map(func((_, a) : (Nat, EmergencyAlert)) : EmergencyAlert { a });
     alerts.sort(
       func(a : EmergencyAlert, b : EmergencyAlert) : Order.Order {
-        // Descending by timestamp (most recent first)
-        if (b.timestamp > a.timestamp) { #less }
-        else if (b.timestamp < a.timestamp) { #greater }
-        else { #equal };
+        if (b.timestamp > a.timestamp) { #less } else if (b.timestamp < a.timestamp) {
+          #greater;
+        } else { #equal };
       }
     );
   };
 
   // ── Dashboard Stats ───────────────────────────────────────────────────────
 
-  /// Get summary statistics for the dashboard. Public read.
   public query func getDashboardStats() : async {
     hospitalCount : Nat;
     availableBeds : Nat;
@@ -264,7 +270,6 @@ actor {
 
   // ── Emergency Contacts ─────────────────────────────────────────────
 
-  /// Add a new emergency contact for authenticated user. Returns contact ID.
   public shared ({ caller }) func addEmergencyContact(name : Text, phone : Text, relationship : Text) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authenticated users can add emergency contacts");
@@ -294,7 +299,6 @@ actor {
     id;
   };
 
-  /// Remove an emergency contact by its ID for the calling user.
   public shared ({ caller }) func removeEmergencyContact(contactId : Nat) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authenticated users can remove emergency contacts");
@@ -310,7 +314,6 @@ actor {
     };
   };
 
-  /// Get all emergency contacts for the calling user.
   public query ({ caller }) func getMyEmergencyContacts() : async [EmergencyContact] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authenticated users can view emergency contacts");
@@ -321,7 +324,6 @@ actor {
     };
   };
 
-  /// Admin/internal function to get emergency contacts for a specific principal
   public query ({ caller }) func getEmergencyContactsByPrincipal(userPrincipal : Principal) : async [EmergencyContact] {
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can access emergency contacts for other users");
@@ -330,5 +332,20 @@ actor {
       case (null) { [] };
       case (?contactsList) { contactsList.toArray() };
     };
+  };
+
+  // Gallery Management
+  public shared ({ caller }) func addGalleryItem(blobId : Text) : async Nat {
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+      Runtime.trap("Only admins can add gallery items");
+    };
+    let newId = getNextId();
+    galleryItems.add(newId, blobId);
+    newId;
+  };
+
+  public query func getGalleryItems() : async [(Nat, Text)] {
+    let itemsArray = galleryItems.toArray();
+    itemsArray;
   };
 };

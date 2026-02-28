@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
+import type { BloodDonor, Hospital, Volunteer, SOSEvent, EmergencyAlert, UserProfile, EmergencyContact } from '../backend';
 import { toast } from 'sonner';
-import type { Volunteer, BloodDonor, Hospital, EmergencyAlert, SOSEvent, UserProfile, EmergencyContact } from '../backend';
 
 // ── User Profile ──────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ export function useSaveCallerUserProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
-      toast.success('Profile saved successfully!');
+      toast.success('Profile saved successfully');
     },
     onError: (error: Error) => {
       toast.error(`Failed to save profile: ${error.message}`);
@@ -85,8 +85,7 @@ export function useAddHospital() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hospitals'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
-      toast.success('Hospital added successfully!');
+      toast.success('Hospital added successfully');
     },
     onError: (error: Error) => {
       toast.error(`Failed to add hospital: ${error.message}`);
@@ -105,8 +104,7 @@ export function useUpdateHospital() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hospitals'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
-      toast.success('Hospital updated successfully!');
+      toast.success('Hospital updated successfully');
     },
     onError: (error: Error) => {
       toast.error(`Failed to update hospital: ${error.message}`);
@@ -129,27 +127,38 @@ export function useGetBloodDonors() {
   });
 }
 
-export function useRegisterBloodDonor() {
+export function useAddBloodDonor() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (donor: Omit<BloodDonor, 'id' | 'registeredAt'>) => {
+    mutationFn: async ({
+      name,
+      city,
+      contact,
+      proofText,
+      detectedBloodType,
+    }: {
+      name: string;
+      city: string;
+      contact: string;
+      proofText: string;
+      detectedBloodType: string;
+    }) => {
       if (!actor) throw new Error('Actor not available');
-      const payload: BloodDonor = {
-        id: 0n,
-        registeredAt: BigInt(Date.now()) * 1_000_000n,
-        ...donor,
-      };
-      return actor.registerBloodDonor(payload);
+      const result = await actor.addBloodDonor(name, city, contact, proofText, detectedBloodType);
+      if (result.__kind__ === 'error') {
+        throw new Error(result.error);
+      }
+      return result.success;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bloodDonors'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
-      toast.success('Blood donor registered successfully!');
+      toast.success('Registered as blood donor successfully!');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to register blood donor: ${error.message}`);
+      toast.error(`Failed to register: ${error.message}`);
     },
   });
 }
@@ -176,22 +185,40 @@ export function useRegisterVolunteer() {
   return useMutation({
     mutationFn: async (volunteer: Omit<Volunteer, 'id'>) => {
       if (!actor) throw new Error('Actor not available');
-      const payload: Volunteer = {
-        id: 0n,
-        name: volunteer.name,
-        skills: volunteer.skills,
-        city: volunteer.city,
-        isActive: volunteer.isActive,
-      };
-      return actor.registerVolunteer(payload);
+      return actor.registerVolunteer({ ...volunteer, id: BigInt(0) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['volunteers'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
-      toast.success('Volunteer registered successfully!');
+      toast.success('Registered as volunteer successfully!');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to register volunteer: ${error.message}`);
+      toast.error(`Failed to register: ${error.message}`);
+    },
+  });
+}
+
+// ── SOS Events ────────────────────────────────────────────────────────────
+
+export function useRecordSOS() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (sos: Pick<SOSEvent, 'lat' | 'lng'>) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.recordSOS({
+        ...sos,
+        id: BigInt(0),
+        timestamp: BigInt(Date.now()) * BigInt(1_000_000),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sosEvents'] });
+      toast.success('SOS recorded successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to record SOS: ${error.message}`);
     },
   });
 }
@@ -208,6 +235,7 @@ export function useGetEmergencyAlerts() {
       return actor.getEmergencyAlerts();
     },
     enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
   });
 }
 
@@ -218,16 +246,15 @@ export function usePostEmergencyAlert() {
   return useMutation({
     mutationFn: async (alert: Omit<EmergencyAlert, 'id' | 'authorId' | 'timestamp'>) => {
       if (!actor) throw new Error('Actor not available');
-      const payload: EmergencyAlert = {
-        id: 0n,
-        timestamp: BigInt(Date.now()) * 1_000_000n,
+      return actor.postEmergencyAlert({
         ...alert,
-      };
-      return actor.postEmergencyAlert(payload);
+        id: BigInt(0),
+        timestamp: BigInt(Date.now()) * BigInt(1_000_000),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['emergencyAlerts'] });
-      toast.success('Emergency alert posted successfully!');
+      toast.success('Alert posted successfully');
     },
     onError: (error: Error) => {
       toast.error(`Failed to post alert: ${error.message}`);
@@ -235,33 +262,7 @@ export function usePostEmergencyAlert() {
   });
 }
 
-// ── SOS Events ────────────────────────────────────────────────────────────
-
-export function useRecordSOS() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (sos: Omit<SOSEvent, 'id' | 'userId' | 'timestamp'>) => {
-      if (!actor) throw new Error('Actor not available');
-      const payload: SOSEvent = {
-        id: 0n,
-        userId: undefined,
-        timestamp: BigInt(Date.now()) * 1_000_000n,
-        ...sos,
-      };
-      return actor.recordSOS(payload);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sosEvents'] });
-    },
-    onError: (error: Error) => {
-      console.error('SOS recording error:', error);
-    },
-  });
-}
-
-// ── Emergency Contacts ─────────────────────────────────────────────────────
+// ── Emergency Contacts ────────────────────────────────────────────────────
 
 export function useGetMyEmergencyContacts() {
   const { actor, isFetching } = useActor();
@@ -273,7 +274,6 @@ export function useGetMyEmergencyContacts() {
       return actor.getMyEmergencyContacts();
     },
     enabled: !!actor && !isFetching,
-    retry: false,
   });
 }
 
@@ -282,13 +282,13 @@ export function useAddEmergencyContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (contact: { name: string; phone: string; relationship: string }) => {
+    mutationFn: async ({ name, phone, relationship }: { name: string; phone: string; relationship: string }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.addEmergencyContact(contact.name, contact.phone, contact.relationship);
+      return actor.addEmergencyContact(name, phone, relationship);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myEmergencyContacts'] });
-      toast.success('Emergency contact added successfully!');
+      toast.success('Emergency contact added');
     },
     onError: (error: Error) => {
       toast.error(`Failed to add contact: ${error.message}`);
@@ -307,7 +307,7 @@ export function useRemoveEmergencyContact() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myEmergencyContacts'] });
-      toast.success('Emergency contact removed.');
+      toast.success('Emergency contact removed');
     },
     onError: (error: Error) => {
       toast.error(`Failed to remove contact: ${error.message}`);

@@ -1,376 +1,395 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useGetVolunteers, useRegisterVolunteer } from '../hooks/useQueries';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { Badge } from '@/components/ui/badge';
+import { Volunteer } from '../backend';
+import { Users, Search, MapPin, CheckCircle, Upload, FileText, X, AlertCircle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Plus, Search, Filter, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import VolunteerDetailModal from '../components/volunteer/VolunteerDetailModal';
 
-const SKILL_OPTIONS = [
-  'First Aid',
-  'CPR',
-  'Medical',
-  'Search & Rescue',
-  'Firefighting',
-  'Logistics',
-  'Communication',
-  'Transportation',
-  'Mental Health',
-  'Translation',
-  'IT Support',
-  'Cooking',
+const SKILL_COLORS = [
+  'bg-red-600/20 text-red-300 border-red-600/30',
+  'bg-amber-600/20 text-amber-300 border-amber-600/30',
+  'bg-blue-600/20 text-blue-300 border-blue-600/30',
+  'bg-emerald-600/20 text-emerald-300 border-emerald-600/30',
+  'bg-purple-600/20 text-purple-300 border-purple-600/30',
+  'bg-orange-600/20 text-orange-300 border-orange-600/30',
 ];
 
-interface VolunteerFormData {
-  name: string;
-  city: string;
-  skills: string[];
-  isActive: boolean;
+function VolunteerCard({ volunteer, onClick }: { volunteer: Volunteer; onClick?: () => void }) {
+  return (
+    <Card
+      className={`bg-charcoal-800 border-charcoal-700 transition-all ${onClick ? 'hover:border-amber-500/50 hover:bg-charcoal-750 cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div>
+            <p className="font-semibold text-white">{volunteer.name}</p>
+            <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+              <MapPin className="w-3 h-3" />
+              <span>{volunteer.city}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className={`w-2 h-2 rounded-full ${volunteer.isActive ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+            <span className={`text-xs ${volunteer.isActive ? 'text-emerald-400' : 'text-gray-500'}`}>
+              {volunteer.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        </div>
+
+        {volunteer.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {volunteer.skills.slice(0, 3).map((skill, idx) => (
+              <span
+                key={skill}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium border ${SKILL_COLORS[idx % SKILL_COLORS.length]}`}
+              >
+                {skill}
+              </span>
+            ))}
+            {volunteer.skills.length > 3 && (
+              <span className="px-2 py-0.5 rounded-full text-xs text-gray-500 border border-charcoal-600">
+                +{volunteer.skills.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          {volunteer.proofText ? (
+            <div className="flex items-center gap-1 text-xs text-emerald-400">
+              <CheckCircle className="w-3 h-3" />
+              <span>Proof Submitted</span>
+            </div>
+          ) : (
+            <span className="text-xs text-gray-600">No proof</span>
+          )}
+          {onClick && (
+            <span className="text-xs text-amber-400/70 hover:text-amber-400">View Details →</span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
-const defaultForm: VolunteerFormData = {
-  name: '',
-  city: '',
-  skills: [],
-  isActive: true,
-};
-
 export default function VolunteerPage() {
-  const { identity } = useInternetIdentity();
-  const isAuthenticated = !!identity;
-
   const { data: volunteers = [], isLoading } = useGetVolunteers();
   const registerVolunteer = useRegisterVolunteer();
 
-  const [form, setForm] = useState<VolunteerFormData>(defaultForm);
   const [showForm, setShowForm] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-
-  // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [skillFilter, setSkillFilter] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
+  const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
 
-  const toggleSkill = (skill: string) => {
-    setForm(prev => ({
-      ...prev,
-      skills: prev.skills.includes(skill)
-        ? prev.skills.filter(s => s !== skill)
-        : [...prev.skills, skill],
-    }));
+  // Form state
+  const [name, setName] = useState('');
+  const [city, setCity] = useState('');
+  const [skillsInput, setSkillsInput] = useState('');
+  const [isActive, setIsActive] = useState(true);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofText, setProofText] = useState('');
+  const [proofError, setProofError] = useState('');
+  const [isReadingFile, setIsReadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setProofFile(file);
+    setProofError('');
+    setIsReadingFile(true);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setProofText(text || file.name);
+      setIsReadingFile(false);
+    };
+    reader.onerror = () => {
+      setProofText(file.name);
+      setIsReadingFile(false);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleRemoveFile = () => {
+    setProofFile(null);
+    setProofText('');
+    setProofError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccessMessage('');
-    setErrorMessage('');
-
-    if (!form.name.trim()) {
-      setErrorMessage('Name is required.');
+    if (!proofFile) {
+      setProofError('Please upload a volunteer credential or proof document.');
       return;
     }
-    if (!form.city.trim()) {
-      setErrorMessage('City is required.');
-      return;
-    }
-    if (form.skills.length === 0) {
-      setErrorMessage('Please select at least one skill.');
-      return;
-    }
-
+    const skills = skillsInput.split(',').map(s => s.trim()).filter(Boolean);
     try {
       await registerVolunteer.mutateAsync({
-        name: form.name.trim(),
-        city: form.city.trim(),
-        skills: form.skills,
-        isActive: form.isActive,
+        name,
+        city,
+        skills,
+        isActive,
+        proofText,
       });
-      setSuccessMessage(`${form.name} has been registered as a volunteer!`);
-      setForm(defaultForm);
       setShowForm(false);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setErrorMessage(message);
+      setName(''); setCity(''); setSkillsInput(''); setIsActive(true);
+      setProofFile(null); setProofText(''); setProofError('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch {
+      // error handled by mutation
     }
   };
 
   const filteredVolunteers = volunteers.filter(v => {
-    const matchesSearch =
-      !searchQuery ||
+    const matchesSearch = !searchQuery ||
       v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.city.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSkill =
-      !skillFilter || v.skills.some(s => s.toLowerCase().includes(skillFilter.toLowerCase()));
+      v.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesActive =
-      activeFilter === 'all' ||
-      (activeFilter === 'active' && v.isActive) ||
-      (activeFilter === 'inactive' && !v.isActive);
-    return matchesSearch && matchesSkill && matchesActive;
+      filterActive === 'all' ||
+      (filterActive === 'active' && v.isActive) ||
+      (filterActive === 'inactive' && !v.isActive);
+    return matchesSearch && matchesActive;
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <div className="min-h-screen bg-charcoal-950 text-white">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            <Users className="w-8 h-8 text-primary" />
-            Volunteer Directory
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Connect with trained volunteers ready to help in emergencies.
-          </p>
+      <div className="bg-charcoal-900 border-b border-charcoal-700 px-4 py-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">Volunteer Directory</h1>
+                <p className="text-gray-400 text-sm">Connect with emergency response volunteers</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setShowForm(!showForm)}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {showForm ? 'Cancel' : '+ Register as Volunteer'}
+            </Button>
+          </div>
         </div>
-        {isAuthenticated && (
-          <Button
-            onClick={() => {
-              setShowForm(prev => !prev);
-              setSuccessMessage('');
-              setErrorMessage('');
-            }}
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            {showForm ? 'Cancel' : 'Register as Volunteer'}
-          </Button>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Registration Form */}
+        {showForm && (
+          <Card className="bg-charcoal-800 border-amber-600/30">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-amber-500" />
+                Register as Volunteer
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-gray-300">Full Name *</Label>
+                    <Input
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="Your full name"
+                      required
+                      className="bg-charcoal-700 border-charcoal-600 text-white placeholder:text-gray-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-gray-300">City *</Label>
+                    <Input
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                      placeholder="Your city"
+                      required
+                      className="bg-charcoal-700 border-charcoal-600 text-white placeholder:text-gray-500"
+                    />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <Label className="text-gray-300">Skills (comma-separated)</Label>
+                    <Input
+                      value={skillsInput}
+                      onChange={e => setSkillsInput(e.target.value)}
+                      placeholder="e.g. First Aid, CPR, Driving"
+                      className="bg-charcoal-700 border-charcoal-600 text-white placeholder:text-gray-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-gray-300">Availability Status</Label>
+                    <div className="flex items-center gap-3 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsActive(true)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-emerald-600 text-white' : 'bg-charcoal-700 text-gray-400 border border-charcoal-600'}`}
+                      >
+                        Active
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsActive(false)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!isActive ? 'bg-gray-600 text-white' : 'bg-charcoal-700 text-gray-400 border border-charcoal-600'}`}
+                      >
+                        Inactive
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Proof Upload */}
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Upload Volunteer Credential / Proof *</Label>
+                  <p className="text-xs text-gray-500">
+                    Accepted proof types: <span className="text-amber-400">Government ID</span>, <span className="text-amber-400">First Aid Certification</span>, <span className="text-amber-400">Medical License</span>, <span className="text-amber-400">Driving License</span>, <span className="text-amber-400">Any official credential</span>.
+                  </p>
+
+                  {!proofFile ? (
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-charcoal-600 rounded-lg cursor-pointer hover:border-amber-500/60 transition-colors bg-charcoal-700/50">
+                      <Upload className="w-8 h-8 text-gray-500 mb-2" />
+                      <span className="text-sm text-gray-400">Click to upload credential document</span>
+                      <span className="text-xs text-gray-600 mt-1">TXT, PDF, JPG, PNG supported</span>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".txt,.pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 bg-charcoal-700 rounded-lg border border-charcoal-600">
+                      <FileText className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-300 flex-1 truncate">{proofFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveFile}
+                        className="text-gray-500 hover:text-red-400 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {isReadingFile && (
+                    <div className="flex items-center gap-2 text-sm text-amber-400">
+                      <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                      <span>Reading document...</span>
+                    </div>
+                  )}
+
+                  {proofError && (
+                    <div className="flex items-start gap-2 p-3 bg-red-900/30 border border-red-600/40 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-red-300">{proofError}</span>
+                    </div>
+                  )}
+
+                  {proofFile && !proofError && !isReadingFile && (
+                    <div className="flex items-center gap-2 p-3 bg-emerald-900/30 border border-emerald-600/40 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <span className="text-sm text-emerald-300">Document uploaded successfully</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="submit"
+                    disabled={registerVolunteer.isPending || isReadingFile}
+                    className="bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+                  >
+                    {registerVolunteer.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Registering...
+                      </span>
+                    ) : 'Register as Volunteer'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowForm(false)}
+                    className="border-charcoal-600 text-gray-300 hover:bg-charcoal-700"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Search & Filter */}
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 min-w-48">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by name, city, or skill..."
+              className="pl-9 bg-charcoal-800 border-charcoal-700 text-white placeholder:text-gray-500"
+            />
+          </div>
+          <div className="flex gap-2">
+            {(['all', 'active', 'inactive'] as const).map(status => (
+              <button
+                key={status}
+                onClick={() => setFilterActive(status)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize transition-colors ${filterActive === status ? 'bg-amber-600 text-white' : 'bg-charcoal-800 text-gray-400 hover:bg-charcoal-700 border border-charcoal-700'}`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Volunteers Grid */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-36 bg-charcoal-800" />
+            ))}
+          </div>
+        ) : filteredVolunteers.length === 0 ? (
+          <div className="text-center py-16">
+            <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-400 text-lg">No volunteers found</p>
+            <p className="text-gray-600 text-sm mt-1">
+              {searchQuery || filterActive !== 'all' ? 'Try adjusting your filters' : 'Be the first to register!'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredVolunteers.map(volunteer => (
+              <VolunteerCard
+                key={volunteer.id.toString()}
+                volunteer={volunteer}
+                onClick={() => setSelectedVolunteer(volunteer)}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Success / Error messages */}
-      {successMessage && (
-        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-          <CheckCircle className="w-4 h-4 text-green-600" />
-          <AlertDescription className="text-green-700 dark:text-green-300">
-            {successMessage}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Registration Form */}
-      {showForm && isAuthenticated && (
-        <Card className="border-primary/20 shadow-md">
-          <CardHeader>
-            <CardTitle>Register as a Volunteer</CardTitle>
-            <CardDescription>
-              Fill in your details to join the volunteer network.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {errorMessage && (
-                <Alert variant="destructive">
-                  <AlertCircle className="w-4 h-4" />
-                  <AlertDescription>{errorMessage}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="vol-name">Full Name *</Label>
-                  <Input
-                    id="vol-name"
-                    placeholder="Your full name"
-                    value={form.name}
-                    onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-                    disabled={registerVolunteer.isPending}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="vol-city">City *</Label>
-                  <Input
-                    id="vol-city"
-                    placeholder="Your city"
-                    value={form.city}
-                    onChange={e => setForm(prev => ({ ...prev, city: e.target.value }))}
-                    disabled={registerVolunteer.isPending}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Skills * (select all that apply)</Label>
-                <div className="flex flex-wrap gap-2">
-                  {SKILL_OPTIONS.map(skill => (
-                    <button
-                      key={skill}
-                      type="button"
-                      onClick={() => toggleSkill(skill)}
-                      disabled={registerVolunteer.isPending}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                        form.skills.includes(skill)
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background text-foreground border-border hover:border-primary'
-                      }`}
-                    >
-                      {skill}
-                    </button>
-                  ))}
-                </div>
-                {form.skills.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Selected: {form.skills.join(', ')}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="vol-active"
-                  checked={form.isActive}
-                  onCheckedChange={checked => setForm(prev => ({ ...prev, isActive: checked }))}
-                  disabled={registerVolunteer.isPending}
-                />
-                <Label htmlFor="vol-active">
-                  {form.isActive ? 'Available for deployment' : 'Not currently available'}
-                </Label>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <Button
-                  type="submit"
-                  disabled={registerVolunteer.isPending}
-                  className="flex items-center gap-2"
-                >
-                  {registerVolunteer.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Registering...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      Register Volunteer
-                    </>
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setForm(defaultForm);
-                    setErrorMessage('');
-                  }}
-                  disabled={registerVolunteer.isPending}
-                >
-                  Reset
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {!isAuthenticated && (
-        <Alert>
-          <AlertCircle className="w-4 h-4" />
-          <AlertDescription>
-            Please log in to register as a volunteer.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or city..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="relative min-w-[160px]">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Filter by skill..."
-            value={skillFilter}
-            onChange={e => setSkillFilter(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="flex gap-2">
-          {(['all', 'active', 'inactive'] as const).map(f => (
-            <Button
-              key={f}
-              variant={activeFilter === f ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveFilter(f)}
-              className="capitalize"
-            >
-              {f}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Volunteer List */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-40 rounded-xl" />
-          ))}
-        </div>
-      ) : filteredVolunteers.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="text-lg font-medium">No volunteers found</p>
-          <p className="text-sm">
-            {volunteers.length === 0
-              ? 'Be the first to register as a volunteer!'
-              : 'Try adjusting your filters.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredVolunteers.map(volunteer => (
-            <Card
-              key={String(volunteer.id)}
-              className="hover:shadow-md transition-shadow border-border"
-            >
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{volunteer.name}</h3>
-                    <p className="text-sm text-muted-foreground">{volunteer.city}</p>
-                  </div>
-                  <Badge
-                    variant={volunteer.isActive ? 'default' : 'secondary'}
-                    className="flex items-center gap-1 shrink-0"
-                  >
-                    {volunteer.isActive ? (
-                      <CheckCircle className="w-3 h-3" />
-                    ) : (
-                      <XCircle className="w-3 h-3" />
-                    )}
-                    {volunteer.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {volunteer.skills.map(skill => (
-                    <Badge key={skill} variant="outline" className="text-xs">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Stats footer */}
-      {!isLoading && volunteers.length > 0 && (
-        <p className="text-center text-sm text-muted-foreground">
-          Showing {filteredVolunteers.length} of {volunteers.length} volunteers
-        </p>
-      )}
+      {/* Volunteer Detail Modal */}
+      <VolunteerDetailModal
+        volunteer={selectedVolunteer}
+        isOpen={!!selectedVolunteer}
+        onClose={() => setSelectedVolunteer(null)}
+      />
     </div>
   );
 }

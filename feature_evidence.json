@@ -2,10 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-remove-the-built-with-using-caffeine-ai-footer-text-from-all-pages-search-all-frontend-layout-and-page-components-including-applayout-tsx-loginpage-tsx-and-any-other-page-level-files-for-any-element-rendering-this-text-and-delete-it-entirely-no-footer-attribution-should-appear-anywhere-in-the-application",
-      "featureTitle": "Remove the 'Built with using caffeine.ai' footer text from all pages. Search all frontend layout and page components (including AppLayout.tsx, LoginPage.tsx, and any other page-level files) for any element rendering this text and delete it entirely. No footer attribution should appear anywhere in the application.",
+      "featureId": "feature-rewrite-resourcemappage-tsx-to-use-the-overpass-api-https-overpass-api-de-api-interpreter-to-fetch-real-nearby-hospitals-based-on-the-user-s-live-gps-coordinates-instead-of-only-querying-the-backend-on-page-mount-request-the-user-s-geolocation-via-the-existing-usegeolocation-hook-once-coordinates-are-acquired-query-overpass-for-nodes-with-amenity-hospital-or-healthcare-hospital-within-a-10-km-radius-compute-haversine-distances-from-user-to-each-result-sort-by-distance-nearest-first-and-display-only-hospitals-within-5-km-as-map-markers-and-in-the-sidebar-list-fall-back-gracefully-show-no-hospitals-found-within-5-km-if-the-overpass-query-returns-no-results-the-existing-backend-hospital-data-via-usegethospitals-should-still-be-merged-shown-alongside-overpass-results-so-registered-hospitals-are-not-lost",
+      "featureTitle": "Rewrite ResourceMapPage.tsx to use the Overpass API (https://overpass-api.de/api/interpreter) to fetch real nearby hospitals based on the user's live GPS coordinates instead of only querying the backend. On page mount, request the user's geolocation via the existing useGeolocation hook. Once coordinates are acquired, query Overpass for nodes with amenity=hospital or healthcare=hospital within a 10 km radius. Compute haversine distances from user to each result, sort by distance nearest-first, and display only hospitals within 5 km as map markers and in the sidebar list. Fall back gracefully (show 'No hospitals found within 5 km') if the Overpass query returns no results. The existing backend hospital data (via useGetHospitals) should still be merged/shown alongside Overpass results so registered hospitals are not lost.",
       "files": [
-        "frontend/src/components/layout/AppLayout.tsx"
+        "frontend/src/pages/ResourceMapPage.tsx",
+        "frontend/src/utils/overpass.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -13,10 +14,93 @@
         "shadcn-ui@1.0.0",
         "build-template-react@1.0.0",
         "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
+        "github-export-icp-cli@1.0.0",
+        "blob-storage@4.0.0"
       ],
       "testIds": [
-        "REQ-31"
+        "REQ-43"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-on-resourcemappage-tsx-integrate-leaflet-routing-machine-for-in-map-turn-by-turn-directions-when-the-user-clicks-get-directions-on-a-hospital-marker-popup-or-sidebar-list-item-render-a-routing-control-using-l-routing-control-with-the-osrm-service-url-https-router-project-osrm-org-route-v1-plotting-waypoints-from-the-user-s-current-coordinates-to-the-selected-hospital-s-lat-lng-the-route-line-must-be-styled-with-the-app-s-accent-color-red-amber-e-g-ef4444-provide-a-close-directions-button-that-removes-the-routing-control-from-the-map-do-not-create-duplicate-routing-controls-remove-any-existing-control-before-adding-a-new-one",
+      "featureTitle": "On ResourceMapPage.tsx, integrate leaflet-routing-machine for in-map turn-by-turn directions. When the user clicks 'Get Directions' on a hospital marker popup or sidebar list item, render a Routing control using L.Routing.control with the OSRM service URL https://router.project-osrm.org/route/v1, plotting waypoints from the user's current coordinates to the selected hospital's lat/lng. The route line must be styled with the app's accent color (red/amber, e.g. #ef4444). Provide a 'Close Directions' button that removes the routing control from the map. Do not create duplicate routing controls — remove any existing control before adding a new one.",
+      "files": [
+        "frontend/src/pages/ResourceMapPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "blob-storage@4.0.0"
+      ],
+      "testIds": [
+        "REQ-44"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-update-hospitalfinderpage-tsx-to-also-fetch-nearby-hospitals-from-the-overpass-api-using-the-user-s-gps-coordinates-same-query-as-resourcemappage-amenity-hospital-or-healthcare-hospital-within-10-km-radius-in-addition-to-the-backend-registered-hospitals-merge-the-two-data-sources-overpass-real-world-backend-registered-display-distance-address-extracted-from-overpass-tags-addr-street-addr-city-etc-and-phone-number-from-overpass-tags-phone-contact-phone-apply-the-existing-emergency-dark-theme-styling-consistently-charcoal-background-red-amber-accents-glowing-cards-preserve-all-existing-filtering-by-distance-by-availability-and-the-hospitalcard-component-structure",
+      "featureTitle": "Update HospitalFinderPage.tsx to also fetch nearby hospitals from the Overpass API using the user's GPS coordinates (same query as ResourceMapPage: amenity=hospital or healthcare=hospital within 10 km radius), in addition to the backend-registered hospitals. Merge the two data sources (Overpass real-world + backend registered). Display distance, address extracted from Overpass tags (addr:street, addr:city, etc.), and phone number from Overpass tags (phone, contact:phone). Apply the existing emergency dark theme styling consistently (charcoal background, red/amber accents, glowing cards). Preserve all existing filtering (by distance, by availability) and the HospitalCard component structure.",
+      "files": [
+        "frontend/src/pages/HospitalFinderPage.tsx",
+        "frontend/src/utils/overpass.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "blob-storage@4.0.0"
+      ],
+      "testIds": [
+        "REQ-45"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-on-resourcemappage-tsx-each-hospital-marker-popup-and-sidebar-list-item-must-display-the-address-extracted-from-overpass-api-tags-addr-housenumber-addr-street-addr-city-addr-postcode-phone-number-from-phone-contact-phone-or-emergency-phone-tags-opening-hours-opening-hours-tag-and-a-24-7-emergency-badge-if-the-emergency-yes-or-healthcare-emergency-yes-tag-is-present-for-hospitals-sourced-from-the-backend-not-overpass-continue-showing-the-stored-address-and-contact-fields-all-popup-and-sidebar-content-must-be-styled-with-the-emergency-dark-theme-dark-backgrounds-red-amber-text-accents-consistent-typography",
+      "featureTitle": "On ResourceMapPage.tsx, each hospital marker popup and sidebar list item must display the address extracted from Overpass API tags (addr:housenumber + addr:street + addr:city + addr:postcode), phone number (from phone, contact:phone, or emergency:phone tags), opening hours (opening_hours tag), and a 24/7 Emergency badge if the emergency=yes or healthcare:emergency=yes tag is present. For hospitals sourced from the backend (not Overpass), continue showing the stored address and contact fields. All popup and sidebar content must be styled with the emergency dark theme (dark backgrounds, red/amber text accents, consistent typography).",
+      "files": [
+        "frontend/src/pages/ResourceMapPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "blob-storage@4.0.0"
+      ],
+      "testIds": [
+        "REQ-46"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-completely-rewrite-the-blood-type-detection-logic-in-blooddonorpage-tsx-for-text-based-uploaded-files-txt-or-pdf-read-as-text-via-filereader-apply-a-strict-priority-ordered-regex-testing-ab-ab-a-a-b-b-o-o-in-that-exact-order-most-specific-first-patterns-must-cover-bare-symbols-e-g-ab-labeled-formats-blood-group-a-blood-type-b-group-o-and-spelled-out-forms-a-positive-b-negative-o-positive-for-image-files-jpg-png-where-binary-data-cannot-be-parsed-do-not-run-regex-on-raw-binary-base64-content-instead-display-the-inline-message-image-files-cannot-be-analyzed-automatically-please-select-your-blood-type-below-and-render-a-manual-blood-type-selector-a-a-b-b-ab-ab-o-o-that-the-user-must-confirm-before-submission-is-allowed-show-detected-blood-type-x-only-when-a-type-is-positively-identified-if-detection-fails-on-a-text-file-show-could-not-detect-blood-type-from-the-uploaded-proof-please-upload-a-document-clearly-showing-your-blood-group-and-block-form-submission-the-confirmed-or-detected-blood-type-must-be-sent-to-the-backend-on-form-submission",
+      "featureTitle": "Completely rewrite the blood type detection logic in BloodDonorPage.tsx. For text-based uploaded files (TXT or PDF read as text via FileReader): apply a strict priority-ordered regex testing AB+, AB-, A+, A-, B+, B-, O+, O- in that exact order (most specific first). Patterns must cover bare symbols (e.g. 'AB+'), labeled formats ('Blood Group: A+', 'Blood Type: B-', 'Group: O+'), and spelled-out forms ('A Positive', 'B Negative', 'O Positive'). For image files (JPG/PNG) where binary data cannot be parsed: do NOT run regex on raw binary/base64 content; instead display the inline message 'Image files cannot be analyzed automatically. Please select your blood type below.' and render a manual blood type selector (A+, A-, B+, B-, AB+, AB-, O+, O-) that the user must confirm before submission is allowed. Show 'Detected Blood Type: [X]' only when a type is positively identified. If detection fails on a text file, show 'Could not detect blood type from the uploaded proof. Please upload a document clearly showing your blood group.' and block form submission. The confirmed or detected blood type must be sent to the backend on form submission.",
+      "files": [
+        "frontend/src/pages/BloodDonorPage.tsx",
+        "frontend/src/utils/bloodTypeDetection.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "blob-storage@4.0.0"
+      ],
+      "testIds": [
+        "REQ-47"
       ],
       "confidence": "high"
     }

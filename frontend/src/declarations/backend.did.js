@@ -8,6 +8,17 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const _CaffeineStorageCreateCertificateResult = IDL.Record({
+  'method' : IDL.Text,
+  'blob_hash' : IDL.Text,
+});
+export const _CaffeineStorageRefillInformation = IDL.Record({
+  'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const _CaffeineStorageRefillResult = IDL.Record({
+  'success' : IDL.Opt(IDL.Bool),
+  'topped_up_amount' : IDL.Opt(IDL.Nat),
+});
 export const Hospital = IDL.Record({
   'id' : IDL.Nat,
   'lat' : IDL.Float64,
@@ -25,10 +36,12 @@ export const UserRole = IDL.Variant({
 export const Time = IDL.Int;
 export const BloodDonor = IDL.Record({
   'id' : IDL.Nat,
-  'bloodType' : IDL.Text,
   'contact' : IDL.Text,
+  'proofText' : IDL.Text,
   'city' : IDL.Text,
   'name' : IDL.Text,
+  'detectedBloodType' : IDL.Text,
+  'verifiedBloodType' : IDL.Text,
   'registeredAt' : Time,
 });
 export const UserProfile = IDL.Record({
@@ -61,6 +74,7 @@ export const SOSEvent = IDL.Record({
 });
 export const Volunteer = IDL.Record({
   'id' : IDL.Nat,
+  'proofText' : IDL.Text,
   'city' : IDL.Text,
   'name' : IDL.Text,
   'isActive' : IDL.Bool,
@@ -68,12 +82,44 @@ export const Volunteer = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  '_caffeineStorageBlobIsLive' : IDL.Func(
+      [IDL.Vec(IDL.Nat8)],
+      [IDL.Bool],
+      ['query'],
+    ),
+  '_caffeineStorageBlobsToDelete' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      ['query'],
+    ),
+  '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      [],
+      [],
+    ),
+  '_caffeineStorageCreateCertificate' : IDL.Func(
+      [IDL.Text],
+      [_CaffeineStorageCreateCertificateResult],
+      [],
+    ),
+  '_caffeineStorageRefillCashier' : IDL.Func(
+      [IDL.Opt(_CaffeineStorageRefillInformation)],
+      [_CaffeineStorageRefillResult],
+      [],
+    ),
+  '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addBloodDonor' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Variant({ 'error' : IDL.Text, 'success' : IDL.Nat })],
+      [],
+    ),
   'addEmergencyContact' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
       [],
     ),
+  'addGalleryItem' : IDL.Func([IDL.Text], [IDL.Nat], []),
   'addHospital' : IDL.Func([Hospital], [IDL.Nat], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'findHospitalsByDistance' : IDL.Func(
@@ -107,6 +153,11 @@ export const idlService = IDL.Service({
       [IDL.Vec(EmergencyContact)],
       ['query'],
     ),
+  'getGalleryItems' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
+      ['query'],
+    ),
   'getHospitals' : IDL.Func([], [IDL.Vec(Hospital)], ['query']),
   'getMyEmergencyContacts' : IDL.Func(
       [],
@@ -123,7 +174,6 @@ export const idlService = IDL.Service({
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'postEmergencyAlert' : IDL.Func([EmergencyAlert], [IDL.Nat], []),
   'recordSOS' : IDL.Func([SOSEvent], [IDL.Nat], []),
-  'registerBloodDonor' : IDL.Func([BloodDonor], [IDL.Nat], []),
   'registerVolunteer' : IDL.Func([Volunteer], [IDL.Nat], []),
   'removeEmergencyContact' : IDL.Func([IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
@@ -133,6 +183,17 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const _CaffeineStorageCreateCertificateResult = IDL.Record({
+    'method' : IDL.Text,
+    'blob_hash' : IDL.Text,
+  });
+  const _CaffeineStorageRefillInformation = IDL.Record({
+    'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const _CaffeineStorageRefillResult = IDL.Record({
+    'success' : IDL.Opt(IDL.Bool),
+    'topped_up_amount' : IDL.Opt(IDL.Nat),
+  });
   const Hospital = IDL.Record({
     'id' : IDL.Nat,
     'lat' : IDL.Float64,
@@ -150,10 +211,12 @@ export const idlFactory = ({ IDL }) => {
   const Time = IDL.Int;
   const BloodDonor = IDL.Record({
     'id' : IDL.Nat,
-    'bloodType' : IDL.Text,
     'contact' : IDL.Text,
+    'proofText' : IDL.Text,
     'city' : IDL.Text,
     'name' : IDL.Text,
+    'detectedBloodType' : IDL.Text,
+    'verifiedBloodType' : IDL.Text,
     'registeredAt' : Time,
   });
   const UserProfile = IDL.Record({
@@ -186,6 +249,7 @@ export const idlFactory = ({ IDL }) => {
   });
   const Volunteer = IDL.Record({
     'id' : IDL.Nat,
+    'proofText' : IDL.Text,
     'city' : IDL.Text,
     'name' : IDL.Text,
     'isActive' : IDL.Bool,
@@ -193,12 +257,44 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    '_caffeineStorageBlobIsLive' : IDL.Func(
+        [IDL.Vec(IDL.Nat8)],
+        [IDL.Bool],
+        ['query'],
+      ),
+    '_caffeineStorageBlobsToDelete' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        [],
+        [],
+      ),
+    '_caffeineStorageCreateCertificate' : IDL.Func(
+        [IDL.Text],
+        [_CaffeineStorageCreateCertificateResult],
+        [],
+      ),
+    '_caffeineStorageRefillCashier' : IDL.Func(
+        [IDL.Opt(_CaffeineStorageRefillInformation)],
+        [_CaffeineStorageRefillResult],
+        [],
+      ),
+    '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addBloodDonor' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Variant({ 'error' : IDL.Text, 'success' : IDL.Nat })],
+        [],
+      ),
     'addEmergencyContact' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
         [],
       ),
+    'addGalleryItem' : IDL.Func([IDL.Text], [IDL.Nat], []),
     'addHospital' : IDL.Func([Hospital], [IDL.Nat], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'findHospitalsByDistance' : IDL.Func(
@@ -232,6 +328,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(EmergencyContact)],
         ['query'],
       ),
+    'getGalleryItems' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
+        ['query'],
+      ),
     'getHospitals' : IDL.Func([], [IDL.Vec(Hospital)], ['query']),
     'getMyEmergencyContacts' : IDL.Func(
         [],
@@ -248,7 +349,6 @@ export const idlFactory = ({ IDL }) => {
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'postEmergencyAlert' : IDL.Func([EmergencyAlert], [IDL.Nat], []),
     'recordSOS' : IDL.Func([SOSEvent], [IDL.Nat], []),
-    'registerBloodDonor' : IDL.Func([BloodDonor], [IDL.Nat], []),
     'registerVolunteer' : IDL.Func([Volunteer], [IDL.Nat], []),
     'removeEmergencyContact' : IDL.Func([IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),

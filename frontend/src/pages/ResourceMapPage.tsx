@@ -1,638 +1,547 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useGetHospitals, useGetVolunteers } from '../hooks/useQueries';
-import { Loader2, MapPin, Navigation, Users, Building2, ChevronLeft, ChevronRight, Info } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useGetHospitals } from "../hooks/useQueries";
+import {
+  fetchNearbyHospitals,
+  getHospitalAddress,
+  getHospitalPhone,
+  getOpeningHours,
+  hasEmergency,
+  haversineDistance,
+  type OverpassHospital,
+} from "../utils/overpass";
+import { Hospital } from "../backend";
+import { MapPin, Navigation, X, AlertCircle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-// Use any for the Leaflet global since the package is loaded via CDN
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LeafletMap = any;
+// Leaflet loaded via CDN — declare global
+declare const L: any;
 
-// City to coordinates lookup table (best-effort for major cities)
-const CITY_COORDS: Record<string, [number, number]> = {
-  // Pakistan
-  'karachi': [24.8607, 67.0011],
-  'lahore': [31.5204, 74.3587],
-  'islamabad': [33.6844, 73.0479],
-  'rawalpindi': [33.5651, 73.0169],
-  'faisalabad': [31.4504, 73.1350],
-  'multan': [30.1575, 71.5249],
-  'peshawar': [34.0151, 71.5249],
-  'quetta': [30.1798, 66.9750],
-  'hyderabad': [25.3960, 68.3578],
-  'gujranwala': [32.1877, 74.1945],
-  // India
-  'mumbai': [19.0760, 72.8777],
-  'delhi': [28.6139, 77.2090],
-  'new delhi': [28.6139, 77.2090],
-  'bangalore': [12.9716, 77.5946],
-  'bengaluru': [12.9716, 77.5946],
-  'chennai': [13.0827, 80.2707],
-  'kolkata': [22.5726, 88.3639],
-  'pune': [18.5204, 73.8567],
-  'ahmedabad': [23.0225, 72.5714],
-  'jaipur': [26.9124, 75.7873],
-  // USA
-  'new york': [40.7128, -74.0060],
-  'los angeles': [34.0522, -118.2437],
-  'chicago': [41.8781, -87.6298],
-  'houston': [29.7604, -95.3698],
-  'phoenix': [33.4484, -112.0740],
-  'philadelphia': [39.9526, -75.1652],
-  'san antonio': [29.4241, -98.4936],
-  'san diego': [32.7157, -117.1611],
-  'dallas': [32.7767, -96.7970],
-  'san francisco': [37.7749, -122.4194],
-  // UK
-  'london': [51.5074, -0.1278],
-  'manchester': [53.4808, -2.2426],
-  'birmingham': [52.4862, -1.8904],
-  'glasgow': [55.8642, -4.2518],
-  'edinburgh': [55.9533, -3.1883],
-  // Other major cities
-  'dubai': [25.2048, 55.2708],
-  'abu dhabi': [24.4539, 54.3773],
-  'riyadh': [24.7136, 46.6753],
-  'cairo': [30.0444, 31.2357],
-  'nairobi': [-1.2921, 36.8219],
-  'lagos': [6.5244, 3.3792],
-  'johannesburg': [-26.2041, 28.0473],
-  'sydney': [-33.8688, 151.2093],
-  'melbourne': [-37.8136, 144.9631],
-  'toronto': [43.6532, -79.3832],
-  'vancouver': [49.2827, -123.1207],
-  'paris': [48.8566, 2.3522],
-  'berlin': [52.5200, 13.4050],
-  'madrid': [40.4168, -3.7038],
-  'rome': [41.9028, 12.4964],
-  'amsterdam': [52.3676, 4.9041],
-  'tokyo': [35.6762, 139.6503],
-  'beijing': [39.9042, 116.4074],
-  'shanghai': [31.2304, 121.4737],
-  'singapore': [1.3521, 103.8198],
-  'bangkok': [13.7563, 100.5018],
-  'jakarta': [-6.2088, 106.8456],
-  'kuala lumpur': [3.1390, 101.6869],
-  'dhaka': [23.8103, 90.4125],
-  'colombo': [6.9271, 79.8612],
-  'kathmandu': [27.7172, 85.3240],
-};
+const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+const ROUTING_CSS = "https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css";
+const ROUTING_JS = "https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js";
 
-function getCityCoords(city: string): [number, number] | null {
-  const normalized = city.toLowerCase().trim();
-  if (CITY_COORDS[normalized]) return CITY_COORDS[normalized];
-  for (const [key, coords] of Object.entries(CITY_COORDS)) {
-    if (normalized.includes(key) || key.includes(normalized)) {
-      return coords;
+function loadCSS(href: string) {
+  if (document.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
     }
-  }
-  return null;
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.head.appendChild(script);
+  });
 }
 
-function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+// Unified hospital type for display
+interface DisplayHospital {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  distance: number;
+  address: string;
+  phone: string | null;
+  openingHours: string | null;
+  emergency: boolean;
+  bedsAvailable?: number;
+  source: "backend" | "overpass";
 }
-
-// Safe accessor for the global Leaflet object loaded via CDN
-function getL(): LeafletMap {
-  return (window as unknown as Record<string, LeafletMap>)['L'] ?? null;
-}
-
-type ActiveTab = 'hospitals' | 'volunteers';
 
 export default function ResourceMapPage() {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<LeafletMap>(null);
-  const hospitalMarkersRef = useRef<LeafletMap[]>([]);
-  const volunteerMarkersRef = useRef<LeafletMap[]>([]);
+  const { data: backendHospitals = [] } = useGetHospitals();
 
-  const [mapReady, setMapReady] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('hospitals');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError] = useState('');
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const userMarkerRef = useRef<any>(null);
+  const hospitalMarkersRef = useRef<Map<string, any>>(new Map());
+  const routingControlRef = useRef<any>(null);
 
-  const { data: hospitals = [], isLoading: hospitalsLoading } = useGetHospitals();
-  const { data: volunteers = [], isLoading: volunteersLoading } = useGetVolunteers();
+  const [leafletReady, setLeafletReady] = useState(false);
+  const [userPos, setUserPos] = useState<[number, number] | null>(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [overpassLoading, setOverpassLoading] = useState(false);
+  const [overpassError, setOverpassError] = useState<string | null>(null);
+  const [displayHospitals, setDisplayHospitals] = useState<DisplayHospital[]>([]);
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
+  const [showDirections, setShowDirections] = useState(false);
 
-  const isLoading = hospitalsLoading || volunteersLoading;
-
-  // Initialize map
+  // Load Leaflet + routing machine CSS/JS
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+    loadCSS(LEAFLET_CSS);
+    loadCSS(ROUTING_CSS);
+    loadScript(LEAFLET_JS)
+      .then(() => loadScript(ROUTING_JS))
+      .then(() => setLeafletReady(true))
+      .catch(() => setLeafletReady(false));
+  }, []);
 
-    const initMap = () => {
-      const L = getL();
-      if (!L || !mapRef.current) return;
+  // Initialize map once Leaflet is ready
+  useEffect(() => {
+    if (!leafletReady || !mapContainerRef.current || mapInstanceRef.current) return;
 
-      // Fix default icon paths
+    const map = L.map(mapContainerRef.current, {
+      center: [20, 0],
+      zoom: 2,
+      zoomControl: true,
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    mapInstanceRef.current = map;
+    setTimeout(() => map.invalidateSize(), 100);
+  }, [leafletReady]);
+
+  const removeRoutingControl = useCallback(() => {
+    if (routingControlRef.current && mapInstanceRef.current) {
       try {
-        delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl;
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        });
-      } catch (_) { /* ignore */ }
-
-      const map = L.map(mapRef.current, {
-        center: [30.0, 70.0],
-        zoom: 5,
-        zoomControl: true,
-      });
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19,
-      }).addTo(map);
-
-      mapInstanceRef.current = map;
-      setTimeout(() => {
-        map.invalidateSize();
-        setMapReady(true);
-      }, 300);
-    };
-
-    // Ensure Leaflet CSS is loaded
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-    }
-
-    if (getL()) {
-      initMap();
-    } else if (!document.getElementById('leaflet-js')) {
-      const script = document.createElement('script');
-      script.id = 'leaflet-js';
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = initMap;
-      document.head.appendChild(script);
-    } else {
-      // Script tag exists but may still be loading — poll
-      const poll = setInterval(() => {
-        if (getL()) {
-          clearInterval(poll);
-          initMap();
+        if (typeof routingControlRef.current.remove === "function") {
+          routingControlRef.current.remove();
+        } else {
+          mapInstanceRef.current.removeControl(routingControlRef.current);
         }
-      }, 100);
-      return () => clearInterval(poll);
-    }
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        setMapReady(false);
+      } catch (_) {
+        // ignore cleanup errors
       }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Invalidate size when sidebar toggles
-  useEffect(() => {
-    if (mapInstanceRef.current) {
-      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 300);
+      routingControlRef.current = null;
     }
-  }, [sidebarOpen]);
+  }, []);
 
-  // Get user location
+  const mergeHospitals = useCallback(
+    (pos: [number, number], overpassResults: OverpassHospital[]) => {
+      const MAX_DISTANCE_KM = 5;
+
+      const overpassDisplayed: DisplayHospital[] = overpassResults
+        .map((h) => ({
+          id: `overpass-${h.id}`,
+          name: h.tags?.name || "Unnamed Hospital",
+          lat: h.lat,
+          lng: h.lon,
+          distance: haversineDistance(pos[0], pos[1], h.lat, h.lon),
+          address: getHospitalAddress(h.tags),
+          phone: getHospitalPhone(h.tags),
+          openingHours: getOpeningHours(h.tags),
+          emergency: hasEmergency(h.tags),
+          source: "overpass" as const,
+        }))
+        .filter((h) => h.distance <= MAX_DISTANCE_KM);
+
+      const backendDisplayed: DisplayHospital[] = backendHospitals
+        .map((h: Hospital) => ({
+          id: `backend-${String(h.id)}`,
+          name: h.name,
+          lat: h.lat,
+          lng: h.lng,
+          distance: haversineDistance(pos[0], pos[1], h.lat, h.lng),
+          address: h.address,
+          phone: h.contact || null,
+          openingHours: null,
+          emergency: false,
+          bedsAvailable: Number(h.bedsAvailable),
+          source: "backend" as const,
+        }))
+        .filter((h) => h.distance <= MAX_DISTANCE_KM);
+
+      const merged: DisplayHospital[] = [...overpassDisplayed];
+      for (const bh of backendDisplayed) {
+        const isDuplicate = merged.some(
+          (oh) =>
+            oh.name.toLowerCase() === bh.name.toLowerCase() ||
+            haversineDistance(oh.lat, oh.lng, bh.lat, bh.lng) < 0.1
+        );
+        if (!isDuplicate) merged.push(bh);
+      }
+
+      merged.sort((a, b) => a.distance - b.distance);
+      setDisplayHospitals(merged);
+    },
+    [backendHospitals]
+  );
+
+  const fetchHospitals = useCallback(
+    async (pos: [number, number]) => {
+      setOverpassLoading(true);
+      setOverpassError(null);
+      try {
+        const results = await fetchNearbyHospitals(pos[0], pos[1], 10000);
+        mergeHospitals(pos, results);
+      } catch {
+        setOverpassError("Could not fetch nearby hospitals. Showing registered hospitals only.");
+        mergeHospitals(pos, []);
+      } finally {
+        setOverpassLoading(false);
+      }
+    },
+    [mergeHospitals]
+  );
+
   const getUserLocation = useCallback(() => {
+    setLocationLoading(true);
+    setLocationDenied(false);
     if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by your browser.');
+      setLocationDenied(true);
+      setLocationLoading(false);
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        const { latitude, longitude } = pos.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
-        setLocationError('');
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.setView([latitude, longitude], 12);
-          mapInstanceRef.current.invalidateSize();
-        }
+      (pos) => {
+        const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setUserPos(coords);
+        setLocationLoading(false);
+        fetchHospitals(coords);
       },
       () => {
-        setLocationError('Unable to retrieve your location.');
-      }
+        setLocationDenied(true);
+        setLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  }, []);
+  }, [fetchHospitals]);
 
-  // Add hospital markers
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current) return;
-    const L = getL();
-    if (!L) return;
+    getUserLocation();
+  }, [getUserLocation]);
 
-    hospitalMarkersRef.current.forEach(m => { try { m.remove(); } catch (_) { /* ignore */ } });
-    hospitalMarkersRef.current = [];
+  // Place user marker when coords + map are ready
+  useEffect(() => {
+    if (!mapInstanceRef.current || !userPos || !leafletReady) return;
+    const map = mapInstanceRef.current;
+    map.setView(userPos, 13);
+    map.invalidateSize();
 
-    hospitals.forEach(hospital => {
-      if (!mapInstanceRef.current) return;
-      const beds = Number(hospital.bedsAvailable);
-      const bedsColor = beds > 20 ? '#22c55e' : beds > 5 ? '#f59e0b' : '#ef4444';
+    if (userMarkerRef.current) userMarkerRef.current.remove();
+
+    const userIcon = L.divIcon({
+      html: `<div style="width:18px;height:18px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,0.3);"></div>`,
+      className: "",
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+
+    userMarkerRef.current = L.marker(userPos, { icon: userIcon })
+      .addTo(map)
+      .bindPopup("<strong>📍 Your Location</strong>");
+  }, [userPos, leafletReady]);
+
+  // Add hospital markers when hospitals + map are ready
+  useEffect(() => {
+    if (!mapInstanceRef.current || !userPos || !leafletReady || displayHospitals.length === 0) return;
+    const map = mapInstanceRef.current;
+
+    // Remove old markers
+    hospitalMarkersRef.current.forEach((marker) => marker.remove());
+    hospitalMarkersRef.current.clear();
+
+    displayHospitals.forEach((h) => {
+      const isSelected = h.id === selectedHospitalId;
+      const color = isSelected ? "#22c55e" : "#ef4444";
 
       const icon = L.divIcon({
-        html: `<div style="background:#ef4444;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 28],
-        className: '',
+        html: `<div style="width:32px;height:32px;background:${color};border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);font-size:16px;cursor:pointer;">🏥</div>`,
+        className: "",
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
       });
 
-      const distanceText = userLocation
-        ? `<p style="margin:4px 0;font-size:12px;color:#6b7280;">📍 ${haversineDistance(
-            userLocation.lat, userLocation.lng, hospital.lat, hospital.lng
-          ).toFixed(1)} km away</p>`
-        : '';
+      const bedInfo =
+        h.bedsAvailable !== undefined
+          ? `<div style="font-size:12px;margin-bottom:4px;">🛏️ <strong>Beds:</strong> <span style="color:${h.bedsAvailable === 0 ? "#ef4444" : h.bedsAvailable < 5 ? "#f59e0b" : "#22c55e"};font-weight:bold;">${h.bedsAvailable} available</span></div>`
+          : "";
+      const phoneInfo = h.phone
+        ? `<div style="font-size:12px;margin-bottom:4px;">📞 <a href="tel:${h.phone}" style="color:#3b82f6;">${h.phone}</a></div>`
+        : "";
+      const hoursInfo = h.openingHours
+        ? `<div style="font-size:12px;margin-bottom:4px;">🕒 ${h.openingHours}</div>`
+        : "";
+      const emergencyBadge = h.emergency
+        ? `<div style="font-size:11px;background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:999px;display:inline-block;margin-bottom:6px;font-weight:600;">🚑 24/7 Emergency</div>`
+        : "";
 
-      const directionsUrl = userLocation
-        ? `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${hospital.lat},${hospital.lng}`
-        : `https://www.google.com/maps/search/?api=1&query=${hospital.lat},${hospital.lng}`;
-
-      const marker = L.marker([hospital.lat, hospital.lng], { icon });
-      marker.bindPopup(`
-        <div style="min-width:200px;font-family:sans-serif;">
-          <h3 style="margin:0 0 6px;font-size:15px;font-weight:700;color:#111;">${hospital.name}</h3>
-          <p style="margin:4px 0;font-size:12px;color:#6b7280;">📍 ${hospital.address}</p>
-          ${distanceText}
-          <p style="margin:4px 0;font-size:12px;">
-            <span style="color:${bedsColor};font-weight:600;">🛏 ${beds} beds available</span>
-          </p>
-          <p style="margin:4px 0;font-size:12px;color:#6b7280;">📞 ${hospital.contact}</p>
-          <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer"
-            style="display:inline-block;margin-top:8px;padding:5px 12px;background:#3b82f6;color:white;border-radius:6px;font-size:12px;text-decoration:none;">
-            Get Directions
-          </a>
+      const popupContent = `
+        <div style="min-width:220px;max-width:280px;font-family:sans-serif;padding:4px;">
+          <div style="font-weight:bold;font-size:14px;margin-bottom:6px;border-bottom:1px solid #eee;padding-bottom:6px;">🏥 ${h.name}</div>
+          ${emergencyBadge}
+          <div style="font-size:12px;margin-bottom:4px;">📍 <strong>Address:</strong> ${h.address}</div>
+          <div style="font-size:12px;margin-bottom:4px;">📏 <strong>Distance:</strong> ${h.distance.toFixed(2)} km${h.distance < 1 ? ' <span style="color:#22c55e;font-weight:600;">Very Near</span>' : ""}</div>
+          ${phoneInfo}${hoursInfo}${bedInfo}
+          <button
+            onclick="window.__mapGetDirections && window.__mapGetDirections('${h.id}')"
+            style="margin-top:8px;width:100%;padding:8px;background:#ef4444;color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"
+          >
+            🗺️ Get Directions
+          </button>
         </div>
-      `);
-      marker.addTo(mapInstanceRef.current);
-      hospitalMarkersRef.current.push(marker);
-    });
-  }, [mapReady, hospitals, userLocation]);
+      `;
 
-  // Add volunteer markers
+      const marker = L.marker([h.lat, h.lng], { icon })
+        .addTo(map)
+        .bindPopup(popupContent, { maxWidth: 300 });
+
+      marker.on("click", () => setSelectedHospitalId(h.id));
+      hospitalMarkersRef.current.set(h.id, marker);
+    });
+  }, [displayHospitals, leafletReady, userPos, selectedHospitalId]);
+
+  // Expose directions handler to popup buttons
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current) return;
-    const L = getL();
-    if (!L) return;
+    (window as any).__mapGetDirections = (hospitalId: string) => {
+      const h = displayHospitals.find((x) => x.id === hospitalId);
+      if (h) handleGetDirections(h);
+    };
+    return () => {
+      delete (window as any).__mapGetDirections;
+    };
+  }, [displayHospitals]);
 
-    volunteerMarkersRef.current.forEach(m => { try { m.remove(); } catch (_) { /* ignore */ } });
-    volunteerMarkersRef.current = [];
-
-    volunteers.forEach(volunteer => {
+  const handleSelectHospital = useCallback(
+    (h: DisplayHospital) => {
       if (!mapInstanceRef.current) return;
-      const coords = getCityCoords(volunteer.city);
-      if (!coords) return;
+      setSelectedHospitalId(h.id);
+      setShowDirections(false);
+      removeRoutingControl();
+      mapInstanceRef.current.flyTo([h.lat, h.lng], 16, { duration: 1 });
+      setTimeout(() => {
+        const marker = hospitalMarkersRef.current.get(h.id);
+        if (marker) marker.openPopup();
+      }, 900);
+    },
+    [removeRoutingControl]
+  );
 
-      // Small random jitter so volunteers in the same city don't stack exactly
-      const jitter = () => (Math.random() - 0.5) * 0.05;
-      const lat = coords[0] + jitter();
-      const lng = coords[1] + jitter();
+  const handleGetDirections = useCallback(
+    (h: DisplayHospital) => {
+      if (!userPos || !mapInstanceRef.current || !leafletReady) return;
+      const LRouting = L.Routing;
+      if (!LRouting) return;
 
-      const bgColor = volunteer.isActive ? '#22c55e' : '#94a3b8';
-      const icon = L.divIcon({
-        html: `<div style="background:${bgColor};width:26px;height:26px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;">👤</div>`,
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
-        className: '',
-      });
+      setSelectedHospitalId(h.id);
+      setShowDirections(true);
+      removeRoutingControl();
 
-      const skillBadges = volunteer.skills
-        .map(s => `<span style="display:inline-block;padding:2px 8px;background:#e0f2fe;color:#0369a1;border-radius:999px;font-size:11px;margin:2px;">${s}</span>`)
-        .join('');
+      setTimeout(() => {
+        try {
+          const ctrl = LRouting.control({
+            waypoints: [L.latLng(userPos[0], userPos[1]), L.latLng(h.lat, h.lng)],
+            routeWhileDragging: false,
+            showAlternatives: false,
+            lineOptions: { styles: [{ color: "#ef4444", weight: 4 }] },
+            createMarker: () => null,
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: true,
+            router: LRouting.osrmv1({ serviceUrl: "https://router.project-osrm.org/route/v1" }),
+          }).addTo(mapInstanceRef.current);
+          routingControlRef.current = ctrl;
 
-      const marker = L.marker([lat, lng], { icon });
-      marker.bindPopup(`
-        <div style="min-width:190px;font-family:sans-serif;">
-          <h3 style="margin:0 0 4px;font-size:15px;font-weight:700;color:#111;">${volunteer.name}</h3>
-          <p style="margin:4px 0;font-size:12px;color:#6b7280;">📍 ${volunteer.city}</p>
-          <p style="margin:4px 0;font-size:12px;">
-            <span style="color:${bgColor};font-weight:600;">${volunteer.isActive ? '✅ Available' : '⏸ Unavailable'}</span>
-          </p>
-          <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px;">${skillBadges}</div>
-        </div>
-      `);
-      marker.addTo(mapInstanceRef.current);
-      volunteerMarkersRef.current.push(marker);
-    });
-  }, [mapReady, volunteers]);
+          const bounds = L.latLngBounds([L.latLng(userPos[0], userPos[1]), L.latLng(h.lat, h.lng)]);
+          mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        } catch (e) {
+          console.error("Routing error:", e);
+        }
+      }, 500);
+    },
+    [userPos, leafletReady, removeRoutingControl]
+  );
 
-  // Sorted hospitals by distance
-  const sortedHospitals = [...hospitals].sort((a, b) => {
-    if (!userLocation) return 0;
-    const da = haversineDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
-    const db = haversineDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
-    return da - db;
-  });
+  const handleCloseDirections = useCallback(() => {
+    setShowDirections(false);
+    removeRoutingControl();
+  }, [removeRoutingControl]);
 
-  const volunteersWithCoords = volunteers.filter(v => getCityCoords(v.city) !== null);
-  const volunteersWithoutCoords = volunteers.filter(v => getCityCoords(v.city) === null);
-
-  const focusHospital = (lat: number, lng: number) => {
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([lat, lng], 14);
-      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100);
-    }
+  const getBedsBadge = (beds?: number) => {
+    if (beds === undefined) return null;
+    if (beds === 0) return <Badge variant="destructive">No Beds</Badge>;
+    if (beds < 5) return <Badge className="bg-amber-500 text-white">{beds} Beds</Badge>;
+    return <Badge className="bg-green-600 text-white">{beds} Beds</Badge>;
   };
 
-  const focusVolunteer = (city: string) => {
-    const coords = getCityCoords(city);
-    if (coords && mapInstanceRef.current) {
-      mapInstanceRef.current.setView(coords, 12);
-      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100);
-    }
-  };
+  // Loading state
+  if (locationLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-foreground">
+        <Loader2 className="w-10 h-10 animate-spin text-destructive" />
+        <p className="text-lg font-medium">Finding your location...</p>
+      </div>
+    );
+  }
+
+  // Location denied
+  if (locationDenied) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
+        <AlertCircle className="w-12 h-12 text-destructive" />
+        <h2 className="text-xl font-bold text-foreground">Location Access Required</h2>
+        <p className="text-muted-foreground max-w-sm">
+          Please enable location access in your browser to find nearby hospitals.
+        </p>
+        <Button onClick={getUserLocation} className="bg-destructive hover:bg-destructive/90 text-white">
+          <MapPin className="w-4 h-4 mr-2" />
+          Try Again
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-[calc(100vh-64px)] relative overflow-hidden bg-background">
-      {/* Loading overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-10 h-10 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading map data...</p>
-          </div>
+    <div className="flex flex-col h-full min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-card border-b border-border px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-5 h-5 text-destructive" />
+          <h1 className="text-lg font-bold text-foreground">Resource Map</h1>
+          {overpassLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
         </div>
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={`relative z-10 flex flex-col bg-card border-r border-border transition-all duration-300 ${
-          sidebarOpen ? 'w-80' : 'w-0 overflow-hidden'
-        }`}
-      >
-        {sidebarOpen && (
-          <div className="flex flex-col h-full">
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-border space-y-3">
-              <h2 className="font-bold text-lg text-foreground">Resource Map</h2>
-
-              {/* Location button */}
-              <button
-                onClick={getUserLocation}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-border hover:bg-muted transition-colors text-foreground"
-              >
-                <Navigation className="w-4 h-4" />
-                {userLocation ? 'Update My Location' : 'Use My Location'}
-              </button>
-              {locationError && (
-                <p className="text-xs text-destructive">{locationError}</p>
-              )}
-              {userLocation && (
-                <p className="text-xs text-muted-foreground">
-                  📍 Location active — showing nearest first
-                </p>
-              )}
-
-              {/* Tabs */}
-              <div className="flex rounded-lg overflow-hidden border border-border">
-                <button
-                  onClick={() => setActiveTab('hospitals')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'hospitals'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-background text-muted-foreground hover:bg-muted'
-                  }`}
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  Hospitals ({hospitals.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('volunteers')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
-                    activeTab === 'volunteers'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-background text-muted-foreground hover:bg-muted'
-                  }`}
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  Volunteers ({volunteers.length})
-                </button>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="px-4 py-2 border-b border-border bg-muted/30">
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                {activeTab === 'hospitals' ? (
-                  <>
-                    <span className="flex items-center gap-1">
-                      <span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> &gt;20 beds
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" /> 5–20 beds
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> &lt;5 beds
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex items-center gap-1">
-                      <span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> Active
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-3 h-3 rounded-full bg-slate-400 inline-block" /> Inactive
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Sidebar Content */}
-            <ScrollArea className="flex-1">
-              <div className="p-3 space-y-2">
-                {activeTab === 'hospitals' ? (
-                  sortedHospitals.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      <Building2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      No hospitals available
-                    </div>
-                  ) : (
-                    sortedHospitals.map(hospital => {
-                      const dist = userLocation
-                        ? haversineDistance(userLocation.lat, userLocation.lng, hospital.lat, hospital.lng)
-                        : null;
-                      const beds = Number(hospital.bedsAvailable);
-                      const bedsColor =
-                        beds > 20 ? 'text-green-600' : beds > 5 ? 'text-amber-600' : 'text-red-600';
-
-                      return (
-                        <button
-                          key={String(hospital.id)}
-                          onClick={() => focusHospital(hospital.lat, hospital.lng)}
-                          className="w-full text-left p-3 rounded-lg border border-border hover:border-primary hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm text-foreground truncate">{hospital.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{hospital.address}</p>
-                            </div>
-                            {dist !== null && (
-                              <span className="text-xs text-muted-foreground shrink-0">{dist.toFixed(1)} km</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className={`text-xs font-semibold ${bedsColor}`}>
-                              🛏 {hospital.bedsAvailable} beds
-                            </span>
-                            <span className="text-xs text-muted-foreground">📞 {hospital.contact}</span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  )
-                ) : (
-                  <>
-                    {volunteers.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
-                        <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        No volunteers registered yet
-                      </div>
-                    ) : (
-                      <>
-                        {volunteersWithCoords.map(volunteer => (
-                          <button
-                            key={String(volunteer.id)}
-                            onClick={() => focusVolunteer(volunteer.city)}
-                            className="w-full text-left p-3 rounded-lg border border-border hover:border-primary hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm text-foreground">{volunteer.name}</p>
-                                <p className="text-xs text-muted-foreground">📍 {volunteer.city}</p>
-                              </div>
-                              <Badge
-                                variant={volunteer.isActive ? 'default' : 'secondary'}
-                                className="text-xs shrink-0"
-                              >
-                                {volunteer.isActive ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {volunteer.skills.slice(0, 3).map(skill => (
-                                <span
-                                  key={skill}
-                                  className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full"
-                                >
-                                  {skill}
-                                </span>
-                              ))}
-                              {volunteer.skills.length > 3 && (
-                                <span className="text-xs text-muted-foreground">
-                                  +{volunteer.skills.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        ))}
-
-                        {volunteersWithoutCoords.length > 0 && (
-                          <div className="mt-3">
-                            <div className="flex items-center gap-1.5 px-1 mb-2">
-                              <Info className="w-3.5 h-3.5 text-muted-foreground" />
-                              <p className="text-xs text-muted-foreground">
-                                {volunteersWithoutCoords.length} volunteer(s) with unknown city:
-                              </p>
-                            </div>
-                            {volunteersWithoutCoords.map(volunteer => (
-                              <div
-                                key={String(volunteer.id)}
-                                className="p-3 rounded-lg border border-dashed border-border bg-muted/20"
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div>
-                                    <p className="font-medium text-sm text-foreground">{volunteer.name}</p>
-                                    <p className="text-xs text-muted-foreground">📍 {volunteer.city}</p>
-                                  </div>
-                                  <Badge
-                                    variant={volunteer.isActive ? 'default' : 'secondary'}
-                                    className="text-xs shrink-0"
-                                  >
-                                    {volunteer.isActive ? 'Active' : 'Inactive'}
-                                  </Badge>
-                                </div>
-                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                  {volunteer.skills.slice(0, 3).map(skill => (
-                                    <span
-                                      key={skill}
-                                      className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full"
-                                    >
-                                      {skill}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {overpassError && (
+            <span className="text-xs text-amber-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" /> {overpassError}
+            </span>
+          )}
+          <Badge variant="outline" className="text-xs">
+            {displayHospitals.length} hospitals within 5 km
+          </Badge>
+          {showDirections && (
+            <Button size="sm" variant="outline" onClick={handleCloseDirections}>
+              <X className="w-3 h-3 mr-1" /> Close Directions
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Sidebar toggle button */}
-      <button
-        onClick={() => setSidebarOpen(prev => !prev)}
-        className="absolute top-1/2 -translate-y-1/2 z-20 bg-card border border-border rounded-r-lg p-1.5 shadow-md hover:bg-muted transition-colors"
-        style={{ left: sidebarOpen ? '320px' : '0px' }}
-      >
-        {sidebarOpen ? (
-          <ChevronLeft className="w-4 h-4 text-foreground" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-foreground" />
-        )}
-      </button>
-
-      {/* Map container */}
-      <div className="flex-1 relative">
-        <div
-          ref={mapRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 1,
-          }}
-        />
-
-        {/* Map legend overlay */}
-        <div className="absolute bottom-6 right-4 z-10 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg text-xs space-y-1.5">
-          <p className="font-semibold text-foreground mb-1">Map Legend</p>
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-full bg-red-500 inline-block shrink-0" />
-            <span className="text-muted-foreground">Hospital</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-full bg-green-500 inline-block shrink-0" />
-            <span className="text-muted-foreground">Active Volunteer</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-full bg-slate-400 inline-block shrink-0" />
-            <span className="text-muted-foreground">Inactive Volunteer</span>
-          </div>
-          {userLocation && (
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-blue-500 shrink-0" />
-              <span className="text-muted-foreground">Your Location</span>
+      {/* Map + Sidebar layout */}
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        {/* Map */}
+        <div className="flex-1 min-h-[400px] lg:min-h-0 relative">
+          <div ref={mapContainerRef} className="w-full h-full" style={{ minHeight: "400px" }} />
+          {!leafletReady && (
+            <div className="absolute inset-0 flex items-center justify-center bg-card">
+              <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                <Loader2 className="w-8 h-8 animate-spin text-destructive" />
+                <span className="text-sm">Loading map…</span>
+              </div>
             </div>
           )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="w-full lg:w-80 xl:w-96 bg-card border-t lg:border-t-0 lg:border-l border-border flex flex-col">
+          <div className="px-4 py-3 border-b border-border">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              🏥 Nearby Hospitals
+              <span className="text-xs text-muted-foreground font-normal">
+                ({displayHospitals.length} found)
+              </span>
+            </h2>
+          </div>
+
+          <ScrollArea className="flex-1">
+            {overpassLoading ? (
+              <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Searching nearby hospitals...</span>
+              </div>
+            ) : displayHospitals.length === 0 ? (
+              <div className="text-center py-12 px-4 text-muted-foreground">
+                <MapPin className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">No hospitals found within 5 km</p>
+                <p className="text-xs mt-1">Try moving to a different area or check your connection.</p>
+              </div>
+            ) : (
+              <div className="p-3 space-y-2">
+                {displayHospitals.map((h, index) => (
+                  <div
+                    key={h.id}
+                    onClick={() => handleSelectHospital(h)}
+                    className={`relative rounded-xl border p-3 cursor-pointer transition-all ${
+                      selectedHospitalId === h.id
+                        ? "border-destructive bg-destructive/5 shadow-sm"
+                        : "border-border bg-background hover:border-destructive/40 hover:shadow-sm"
+                    }`}
+                  >
+                    {/* Rank badge */}
+                    <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold flex items-center justify-center">
+                      {index + 1}
+                    </div>
+                    {/* Distance badge */}
+                    <div className="absolute top-3 right-3 bg-destructive text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {h.distance.toFixed(2)} km
+                    </div>
+
+                    <div className="pl-8 pr-16">
+                      <h3 className="font-semibold text-sm text-foreground leading-tight mb-1">
+                        {h.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mb-1">📍 {h.address}</p>
+                      {h.phone && (
+                        <p className="text-xs text-muted-foreground mb-1">
+                          📞{" "}
+                          <a
+                            href={`tel:${h.phone}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-blue-500 hover:underline"
+                          >
+                            {h.phone}
+                          </a>
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {h.emergency && (
+                          <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">
+                            🚑 Emergency
+                          </span>
+                        )}
+                        {getBedsBadge(h.bedsAvailable)}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pl-8 flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGetDirections(h);
+                        }}
+                        disabled={!userPos}
+                        title={!userPos ? "Enable location to get directions" : undefined}
+                        className="flex-1 py-1.5 px-3 bg-destructive hover:bg-destructive/90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Navigation className="w-3 h-3" />
+                        {selectedHospitalId === h.id && showDirections ? "Directions Active" : "Get Directions"}
+                      </button>
+                      {selectedHospitalId === h.id && showDirections && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCloseDirections();
+                          }}
+                          className="py-1.5 px-3 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg flex items-center gap-1 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                          Close
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </div>
       </div>
     </div>

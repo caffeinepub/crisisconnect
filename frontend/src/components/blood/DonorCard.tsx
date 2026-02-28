@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, MapPin } from 'lucide-react';
+import { Phone, MapPin, CheckCircle } from 'lucide-react';
 import type { BloodDonor } from '../../backend';
 
 interface DonorCardProps {
@@ -14,7 +14,7 @@ const BLOOD_TYPE_COLORS: Record<string, string> = {
 };
 
 export default function DonorCard({ donor }: DonorCardProps) {
-  const bloodColor = BLOOD_TYPE_COLORS[donor.bloodType] || '#e63946';
+  const bloodColor = BLOOD_TYPE_COLORS[donor.verifiedBloodType] || '#e63946';
 
   return (
     <div className="rounded-2xl p-4 transition-all hover:scale-[1.01]"
@@ -30,7 +30,7 @@ export default function DonorCard({ donor }: DonorCardProps) {
             <h3 className="font-display font-bold text-white text-sm truncate">{donor.name}</h3>
             <span className="flex-shrink-0 text-sm font-black px-2.5 py-0.5 rounded-full text-white"
               style={{ background: bloodColor }}>
-              {donor.bloodType}
+              {donor.verifiedBloodType}
             </span>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -46,6 +46,12 @@ export default function DonorCard({ donor }: DonorCardProps) {
               </a>
             )}
           </div>
+          {donor.proofText && (
+            <div className="mt-2 flex items-center gap-1 text-xs text-emerald-400">
+              <CheckCircle className="w-3 h-3" />
+              <span>Proof Submitted</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

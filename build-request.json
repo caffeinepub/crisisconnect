@@ -1,36 +1,134 @@
 {
   "kind": "build_request",
-  "title": "Remove 'Built with using caffeine.ai' footer from all pages",
+  "title": "Integrate Overpass API real-time hospital detection with routing into ResourceMapPage and HospitalFinderPage",
   "projectName": "CrisisConnect",
-  "priority": "normal",
+  "priority": "high",
   "requirements": [
     {
-      "id": "REQ-31",
-      "text": "Remove the 'Built with using caffeine.ai' footer text from all pages. Search all frontend layout and page components (including AppLayout.tsx, LoginPage.tsx, and any other page-level files) for any element rendering this text and delete it entirely. No footer attribution should appear anywhere in the application.",
+      "id": "REQ-43",
+      "text": "Rewrite ResourceMapPage.tsx to use the Overpass API (https://overpass-api.de/api/interpreter) to fetch real nearby hospitals based on the user's live GPS coordinates instead of only querying the backend. On page mount, request the user's geolocation via the existing useGeolocation hook. Once coordinates are acquired, query Overpass for nodes with amenity=hospital or healthcare=hospital within a 10 km radius. Compute haversine distances from user to each result, sort by distance nearest-first, and display only hospitals within 5 km as map markers and in the sidebar list. Fall back gracefully (show 'No hospitals found within 5 km') if the Overpass query returns no results. The existing backend hospital data (via useGetHospitals) should still be merged/shown alongside Overpass results so registered hospitals are not lost.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-1"
         ],
         "quotes": [
-          "in bottom of all pages it shows \"Built with using caffeine.ai\" remove that from all pages"
+          "nearby hospitals detected and distance is shown, convert this js to your's format",
+          "in both the finding hospital as well as in resource map also"
         ]
       },
       "acceptanceCriteria": [
-        "No page in the application displays the text 'Built with using caffeine.ai' or any variation of it.",
-        "The footer element or container that held this text is also removed if it served no other purpose.",
-        "All pages — including the login page, dashboard, hospital finder, blood donor, volunteer, resource map, emergency contacts, and any other routes — are free of this attribution text.",
-        "No other visible content or layout is affected by the removal."
+        "On page mount, geolocation is requested automatically.",
+        "Overpass API is queried with the user's real GPS coordinates and a radius of 10 km.",
+        "Only hospitals within 5 km are shown as Leaflet markers and in the sidebar.",
+        "Hospitals are sorted by distance, nearest first.",
+        "If no hospitals are within 5 km, the sidebar displays 'No hospitals found within 5 km' and no markers appear.",
+        "Backend-registered hospitals are merged with Overpass results (deduplication by proximity or name).",
+        "Loading and error states are displayed correctly."
+      ]
+    },
+    {
+      "id": "REQ-44",
+      "text": "On ResourceMapPage.tsx, integrate leaflet-routing-machine for in-map turn-by-turn directions. When the user clicks 'Get Directions' on a hospital marker popup or sidebar list item, render a Routing control using L.Routing.control with the OSRM service URL https://router.project-osrm.org/route/v1, plotting waypoints from the user's current coordinates to the selected hospital's lat/lng. The route line must be styled with the app's accent color (red/amber, e.g. #ef4444). Provide a 'Close Directions' button that removes the routing control from the map. Do not create duplicate routing controls — remove any existing control before adding a new one.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "leaflet-routing-machine for in-map turn-by-turn directions",
+          "clicking a hospital marker shows directions to it"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Clicking 'Get Directions' on a popup or sidebar item draws a route line from user location to the hospital.",
+        "The OSRM router (https://router.project-osrm.org/route/v1) is used for routing.",
+        "The route line uses the app accent color (red/amber).",
+        "A 'Close Directions' button removes the active routing control.",
+        "No duplicate routing controls are added — the previous one is removed before adding a new one.",
+        "If geolocation is not available, the 'Get Directions' button is disabled with tooltip 'Enable location to get directions'."
+      ]
+    },
+    {
+      "id": "REQ-45",
+      "text": "Update HospitalFinderPage.tsx to also fetch nearby hospitals from the Overpass API using the user's GPS coordinates (same query as ResourceMapPage: amenity=hospital or healthcare=hospital within 10 km radius), in addition to the backend-registered hospitals. Merge the two data sources (Overpass real-world + backend registered). Display distance, address extracted from Overpass tags (addr:street, addr:city, etc.), and phone number from Overpass tags (phone, contact:phone). Apply the existing emergency dark theme styling consistently (charcoal background, red/amber accents, glowing cards). Preserve all existing filtering (by distance, by availability) and the HospitalCard component structure.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "in both the finding hospital as well as in resource map also",
+          "convert this js to your's format, like these it must works as change the theme as your's"
+        ]
+      },
+      "acceptanceCriteria": [
+        "HospitalFinderPage fetches hospitals from both the backend and the Overpass API.",
+        "Overpass results include address parsed from addr:street, addr:city, addr:housenumber tags.",
+        "Overpass results include phone from phone or contact:phone tags where available.",
+        "Distance from user location is calculated for all results using the haversine utility.",
+        "Existing distance and availability filters apply to the merged list.",
+        "The page is styled with the existing CrisisConnect emergency dark theme."
+      ]
+    },
+    {
+      "id": "REQ-46",
+      "text": "On ResourceMapPage.tsx, each hospital marker popup and sidebar list item must display the address extracted from Overpass API tags (addr:housenumber + addr:street + addr:city + addr:postcode), phone number (from phone, contact:phone, or emergency:phone tags), opening hours (opening_hours tag), and a 24/7 Emergency badge if the emergency=yes or healthcare:emergency=yes tag is present. For hospitals sourced from the backend (not Overpass), continue showing the stored address and contact fields. All popup and sidebar content must be styled with the emergency dark theme (dark backgrounds, red/amber text accents, consistent typography).",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "nearby hospitals detected and distance is shown",
+          "change the theme as your's"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Popup shows hospital name, address (labeled 'Address:'), distance, phone (as a tel: link), opening hours (if available), and emergency badge (if applicable).",
+        "Sidebar list item shows hospital name, address (labeled 'Address:'), available beds (color-coded), and distance.",
+        "All popup and sidebar content uses the emergency dark theme styling (charcoal, red/amber accents).",
+        "Backend-registered hospitals fall back to their stored address and contact fields."
+      ]
+    },
+    {
+      "id": "REQ-47",
+      "text": "Completely rewrite the blood type detection logic in BloodDonorPage.tsx. For text-based uploaded files (TXT or PDF read as text via FileReader): apply a strict priority-ordered regex testing AB+, AB-, A+, A-, B+, B-, O+, O- in that exact order (most specific first). Patterns must cover bare symbols (e.g. 'AB+'), labeled formats ('Blood Group: A+', 'Blood Type: B-', 'Group: O+'), and spelled-out forms ('A Positive', 'B Negative', 'O Positive'). For image files (JPG/PNG) where binary data cannot be parsed: do NOT run regex on raw binary/base64 content; instead display the inline message 'Image files cannot be analyzed automatically. Please select your blood type below.' and render a manual blood type selector (A+, A-, B+, B-, AB+, AB-, O+, O-) that the user must confirm before submission is allowed. Show 'Detected Blood Type: [X]' only when a type is positively identified. If detection fails on a text file, show 'Could not detect blood type from the uploaded proof. Please upload a document clearly showing your blood group.' and block form submission. The confirmed or detected blood type must be sent to the backend on form submission.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "while upload the some proof means it doesn't analyze it",
+          "the blood donor is take some random blood's only while upload something it must take valuable blood which is mention in the specific proof"
+        ]
+      },
+      "acceptanceCriteria": [
+        "For text files, regex tests AB+/AB- before A+/A-, B+/B-, and O+/O- (strict priority order).",
+        "Patterns cover bare symbols, labeled formats, and spelled-out positivity/negativity.",
+        "For image files (JPG/PNG), no regex is run on binary data; a manual blood type selector is shown instead.",
+        "Manual selector must be confirmed before form submission is allowed for image uploads.",
+        "'Detected Blood Type: [X]' label appears only when detection succeeds.",
+        "If text file detection fails, an error message is shown and form submission is blocked.",
+        "Correct blood type is sent to the backend on submission."
       ]
     }
   ],
   "constraints": [
-    "Do not modify any files listed under frontend.immutablePaths.",
-    "Do not alter any other UI content, layout, or styling beyond removing the attribution footer text."
+    "Do not use any external AI API for blood type detection — client-side regex only.",
+    "Overpass API queries must use the public endpoint https://overpass-api.de/api/interpreter — no API key required.",
+    "OSRM routing must use the public endpoint https://router.project-osrm.org/route/v1 — no API key required.",
+    "All new UI must be styled consistently with the existing CrisisConnect emergency dark theme (charcoal background, red/amber accents).",
+    "Do not modify files listed in frontend.immutablePaths.",
+    "All Motoko logic stays in backend/main.mo."
   ],
   "nonGoals": [
-    "Adding any replacement footer content.",
-    "Changing any other part of the application UI or functionality."
+    "Adding new backend data types or endpoints for Overpass-sourced hospitals.",
+    "Storing Overpass API results in the backend.",
+    "OCR or server-side image analysis for blood type detection.",
+    "Real-time WebSocket updates.",
+    "SMS or push notification delivery for SOS events."
   ],
   "imageRequirements": {
     "required": [],

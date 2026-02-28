@@ -12,10 +12,12 @@ import type { Principal } from '@icp-sdk/core/principal';
 
 export interface BloodDonor {
   'id' : bigint,
-  'bloodType' : string,
   'contact' : string,
+  'proofText' : string,
   'city' : string,
   'name' : string,
+  'detectedBloodType' : string,
+  'verifiedBloodType' : string,
   'registeredAt' : Time,
 }
 export interface EmergencyAlert {
@@ -61,39 +63,53 @@ export type UserRole = { 'admin' : null } |
   { 'guest' : null };
 export interface Volunteer {
   'id' : bigint,
+  'proofText' : string,
   'city' : string,
   'name' : string,
   'isActive' : boolean,
   'skills' : Array<string>,
 }
+export interface _CaffeineStorageCreateCertificateResult {
+  'method' : string,
+  'blob_hash' : string,
+}
+export interface _CaffeineStorageRefillInformation {
+  'proposed_top_up_amount' : [] | [bigint],
+}
+export interface _CaffeineStorageRefillResult {
+  'success' : [] | [boolean],
+  'topped_up_amount' : [] | [bigint],
+}
 export interface _SERVICE {
+  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
+  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
+  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
+    [Array<Uint8Array>],
+    undefined
+  >,
+  '_caffeineStorageCreateCertificate' : ActorMethod<
+    [string],
+    _CaffeineStorageCreateCertificateResult
+  >,
+  '_caffeineStorageRefillCashier' : ActorMethod<
+    [[] | [_CaffeineStorageRefillInformation]],
+    _CaffeineStorageRefillResult
+  >,
+  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
-  /**
-   * / Add a new emergency contact for authenticated user. Returns contact ID.
-   */
+  'addBloodDonor' : ActorMethod<
+    [string, string, string, string, string],
+    { 'error' : string } |
+      { 'success' : bigint }
+  >,
   'addEmergencyContact' : ActorMethod<[string, string, string], bigint>,
-  /**
-   * / Add a hospital. Admin only.
-   */
+  'addGalleryItem' : ActorMethod<[string], bigint>,
   'addHospital' : ActorMethod<[Hospital], bigint>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  /**
-   * / Get hospitals sorted by proximity (distance calculation done client-side).
-   * / Public read.
-   */
   'findHospitalsByDistance' : ActorMethod<[number, number], Array<Hospital>>,
-  /**
-   * / Get all blood donors. Public read.
-   */
   'getBloodDonors' : ActorMethod<[], Array<BloodDonor>>,
-  /**
-   * / Get the calling user's own profile. Requires authenticated user.
-   */
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  /**
-   * / Get summary statistics for the dashboard. Public read.
-   */
   'getDashboardStats' : ActorMethod<
     [],
     {
@@ -103,70 +119,24 @@ export interface _SERVICE {
       'donorCount' : bigint,
     }
   >,
-  /**
-   * / Get donors filtered by blood type. Public read.
-   */
   'getDonorsByBloodType' : ActorMethod<[string], Array<BloodDonor>>,
-  /**
-   * / Get all emergency alerts sorted by most recent first. Public read.
-   */
   'getEmergencyAlerts' : ActorMethod<[], Array<EmergencyAlert>>,
-  /**
-   * / Admin/internal function to get emergency contacts for a specific principal
-   */
   'getEmergencyContactsByPrincipal' : ActorMethod<
     [Principal],
     Array<EmergencyContact>
   >,
-  /**
-   * / Get all hospitals. Public read.
-   */
+  'getGalleryItems' : ActorMethod<[], Array<[bigint, string]>>,
   'getHospitals' : ActorMethod<[], Array<Hospital>>,
-  /**
-   * / Get all emergency contacts for the calling user.
-   */
   'getMyEmergencyContacts' : ActorMethod<[], Array<EmergencyContact>>,
-  /**
-   * / Get all SOS events. Admin only (sensitive location data).
-   */
   'getSOSEvents' : ActorMethod<[], Array<SOSEvent>>,
-  /**
-   * / Fetch any user's profile. Users can only view their own; admins can view anyone's.
-   */
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
-  /**
-   * / Get all volunteers. Public read.
-   */
   'getVolunteers' : ActorMethod<[], Array<Volunteer>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  /**
-   * / Post an emergency alert. Requires authenticated user.
-   */
   'postEmergencyAlert' : ActorMethod<[EmergencyAlert], bigint>,
-  /**
-   * / Record an SOS event. Accessible to everyone including unauthenticated
-   * / users because SOS must work before login.
-   */
   'recordSOS' : ActorMethod<[SOSEvent], bigint>,
-  /**
-   * / Register as a blood donor. Requires authenticated user.
-   */
-  'registerBloodDonor' : ActorMethod<[BloodDonor], bigint>,
-  /**
-   * / Register as a volunteer. Requires authenticated user.
-   */
   'registerVolunteer' : ActorMethod<[Volunteer], bigint>,
-  /**
-   * / Remove an emergency contact by its ID for the calling user.
-   */
   'removeEmergencyContact' : ActorMethod<[bigint], undefined>,
-  /**
-   * / Save / update the calling user's own profile. Requires authenticated user.
-   */
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  /**
-   * / Update an existing hospital. Admin only.
-   */
   'updateHospital' : ActorMethod<[Hospital], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

@@ -1,14 +1,66 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T07:01:39.870Z",
-  "summary": "The diff shows that the 'Built with using caffeine.ai' footer attribution text was removed from AppLayout.tsx. The frontend-file-summaries.txt confirms this change with the description 'footer (copyright only, attribution removed)'. The requirement to remove this text from all pages is addressed, as AppLayout.tsx serves as the main shell for authenticated pages. The LoginPage.tsx is not explicitly shown in the diff, but no evidence of remaining attribution text is present.",
-  "missing_requirements": [],
-  "hallucinated_features": [],
-  "confidence": 0.82,
+  "generatedAt": "2026-02-28T10:04:54.186Z",
+  "summary": "The diff implements most requirements across REQ-43 through REQ-47. Utility modules for Overpass API and blood type detection are added. ResourceMapPage, HospitalFinderPage, and BloodDonorPage are all modified. However, several specific acceptance criteria have gaps, particularly around REQ-44's routing line color, geolocation-disabled tooltip behavior, and REQ-46's sidebar content specification.",
+  "missing_requirements": [
+    {
+      "id": "REQ-44",
+      "requirement": "The route line must be styled with the app's accent color (red/amber, e.g. #ef4444).",
+      "reason": "The diff summary for ResourceMapPage.tsx mentions a 'red route line' in the file summary, but the actual truncated code does not show the OSRM router configuration with a custom line color applied via L.Routing.control options. The code is truncated so this cannot be confirmed as implemented.",
+      "evidence": [
+        "frontend/src/pages/ResourceMapPage.tsx"
+      ]
+    },
+    {
+      "id": "REQ-44",
+      "requirement": "If geolocation is not available, the 'Get Directions' button is disabled with tooltip 'Enable location to get directions'.",
+      "reason": "The truncated ResourceMapPage.tsx code does not show any tooltip attribute or disabled-with-tooltip logic on the 'Get Directions' button when locationDenied is true. This specific AC is not evidenced in the diff.",
+      "evidence": [
+        "frontend/src/pages/ResourceMapPage.tsx"
+      ]
+    },
+    {
+      "id": "REQ-46",
+      "requirement": "Sidebar list item shows hospital name, address (labeled 'Address:'), available beds (color-coded), and distance.",
+      "reason": "The truncated ResourceMapPage.tsx sidebar rendering code is not visible in the diff. There is no evidence that the sidebar list items display available beds color-coded alongside address and distance as required.",
+      "evidence": [
+        "frontend/src/pages/ResourceMapPage.tsx"
+      ]
+    },
+    {
+      "id": "REQ-47",
+      "requirement": "Manual selector must be confirmed before form submission is allowed for image uploads.",
+      "reason": "While the BloodDonorPage.tsx shows isImageFile and manualBloodType state variables and canSubmit logic, the diff is truncated and does not clearly show a confirm action distinct from simply selecting a blood type. The requirement implies an explicit confirmation step, not just selection.",
+      "evidence": [
+        "frontend/src/pages/BloodDonorPage.tsx"
+      ]
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "The overpass.ts utility includes 'mobile' and 'tel' as phone tag fallback fields in getHospitalPhone()",
+      "reason": "REQ-46 specifies only phone, contact:phone, and emergency:phone tags for ResourceMapPage, and REQ-45 specifies only phone and contact:phone for HospitalFinderPage. The implementation adds 'mobile' and 'tel' as additional fallback fields not requested.",
+      "evidence": [
+        "frontend/src/utils/overpass.ts"
+      ]
+    },
+    {
+      "description": "The overpass.ts getHospitalAddress() function also checks addr:road and addr:village tags beyond what was specified.",
+      "reason": "The requirements specify addr:street, addr:city, addr:housenumber, and addr:postcode. The implementation additionally falls back to addr:road and addr:village which were not requested.",
+      "evidence": [
+        "frontend/src/utils/overpass.ts"
+      ]
+    }
+  ],
+  "confidence": 0.62,
   "changed_files": [
     "frontend-file-summaries.txt",
-    "frontend/src/components/layout/AppLayout.tsx",
+    "frontend/src/pages/BloodDonorPage.tsx",
+    "frontend/src/pages/HospitalFinderPage.tsx",
+    "frontend/src/pages/ResourceMapPage.tsx",
+    "frontend/src/utils/bloodTypeDetection.ts",
+    "frontend/src/utils/overpass.ts",
     "project_state.json"
   ]
 }

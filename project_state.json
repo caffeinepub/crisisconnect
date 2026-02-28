@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 15,
+  "projectStateVersion": 23,
   "summary": "CrisisConnect – AI Emergency Response & Resource Mapper web app. Detects user location, shows nearest hospitals, available blood donors, sends emergency alerts to nearby volunteers, and includes an AI chatbot for first-aid guidance. Features an SOS button (accessible before and after login) with extraordinary/advanced features. Tech stack: React/Tailwind frontend, Node.js/Firebase backend, Google Maps API, OpenAI API.",
   "architectural_notes": [
     "Frontend: React with Tailwind CSS",
@@ -8,13 +8,19 @@
     "Maps: Google Maps API for location and resource mapping",
     "AI: OpenAI API for first-aid chatbot",
     "SOS button must be accessible on all pages regardless of auth state",
-    "SOS pre-login: triggers emergency call/dial to emergency services; SOS post-login: notifies user-defined emergency contacts + emergency services"
+    "SOS pre-login: triggers emergency call/dial to emergency services; SOS post-login: notifies user-defined emergency contacts + emergency services",
+    "Blood type detection from proof documents must use precise regex/pattern matching to avoid false positives (e.g., matching 'A+' before 'B+')",
+    "Hospital data source: Overpass API (OpenStreetMap) used for real-time nearby hospital lookup by GPS coordinates, replacing static backend hospital records on map pages",
+    "leaflet-routing-machine integrated for in-map route rendering between user location and selected hospital using OSRM service"
   ],
   "known_issues": [
     "Map page does not correctly show nearby hospitals with user location tracking and distance calculation",
     "Map does not filter hospitals to within 5 km radius; no directions feature on hospital marker click",
     "Volunteer registration form does not successfully add/save volunteer records",
-    "Volunteers are not displayed as markers on the ResourceMapPage map"
+    "Volunteers are not displayed as markers on the ResourceMapPage map",
+    "Blood type detection from uploaded proof documents is incorrect — A+ is being misread as B+",
+    "Clicking a nearby hospital on the map does not show directions from the user's current location",
+    "Blood donor proof upload does not correctly analyze uploaded documents — returns random/incorrect blood type instead of parsing the actual value from the document"
   ],
   "isFixRequest": true,
   "existing_features": [
@@ -249,6 +255,118 @@
         "REQ-31"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-update-the-blood-donor-registration-form-on-blooddonorpage-tsx-to-replace-the-manual-blood-type-dropdown-with-a-proof-document-upload-step-display-accepted-proof-types-to-the-user-e-g-blood-test-report-donor-card-medical-certificate-showing-blood-group-allow-the-user-to-upload-one-document-image-jpg-png-or-pdf-rendered-as-text-after-the-user-selects-a-file-read-its-content-client-side-use-filereader-to-extract-text-from-text-based-files-or-display-file-name-for-images-and-send-the-content-to-the-backend-show-a-detected-blood-type-x-confirmation-label-after-successful-parsing-if-the-blood-type-cannot-be-auto-detected-show-an-inline-error-could-not-detect-blood-type-from-the-uploaded-proof-please-upload-a-document-clearly-showing-your-blood-group-and-do-not-allow-form-submission-until-a-valid-proof-with-detectable-blood-type-is-provided-remove-the-manual-blood-type-input-field-entirely-from-the-registration-form",
+      "title": "Update the Blood Donor registration form on BloodDonorPage.tsx to replace the manual blood type dropdown with a proof document upload step. Display accepted proof types to the user (e.g., 'Blood Test Report', 'Donor Card', 'Medical Certificate showing blood group'). Allow the user to upload one document (image: JPG/PNG, or PDF rendered as text). After the user selects a file, read its content client-side (use FileReader to extract text from text-based files, or display file name for images) and send the content to the backend. Show a 'Detected Blood Type: [X]' confirmation label after successful parsing. If the blood type cannot be auto-detected, show an inline error 'Could not detect blood type from the uploaded proof. Please upload a document clearly showing your blood group.' and do not allow form submission until a valid proof with detectable blood type is provided. Remove the manual blood type input field entirely from the registration form.",
+      "reqIds": [
+        "REQ-33"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-volunteer-registration-form-on-volunteerpage-tsx-to-include-a-proof-document-upload-step-display-accepted-proof-types-to-the-user-e-g-government-id-first-aid-certification-medical-license-driving-license-any-official-credential-allow-the-user-to-upload-one-document-image-or-text-file-read-the-file-client-side-and-send-its-content-to-the-backend-as-prooftext-the-proof-upload-must-be-required-do-not-allow-form-submission-without-a-file-uploaded-show-the-uploaded-file-name-as-confirmation-once-selected",
+      "title": "Update the Volunteer registration form on VolunteerPage.tsx to include a proof document upload step. Display accepted proof types to the user (e.g., 'Government ID', 'First Aid Certification', 'Medical License', 'Driving License', 'Any official credential'). Allow the user to upload one document (image or text file). Read the file client-side and send its content to the backend as `proofText`. The proof upload must be required — do not allow form submission without a file uploaded. Show the uploaded file name as confirmation once selected.",
+      "reqIds": [
+        "REQ-35"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-volunteer-detail-view-on-volunteerpage-tsx-when-a-user-clicks-on-a-volunteer-card-in-the-volunteer-directory-list-open-a-modal-or-expanded-panel-showing-the-volunteer-s-full-details-name-city-skills-as-badges-availability-status-and-proof-document-reference-display-the-file-name-or-a-proof-submitted-indicator-do-not-render-raw-binary-content-style-the-detail-view-consistently-with-the-existing-emergency-dark-theme",
+      "title": "Add a volunteer detail view on VolunteerPage.tsx. When a user clicks on a volunteer card in the volunteer directory list, open a modal or expanded panel showing the volunteer's full details: name, city, skills (as badges), availability status, and proof document reference (display the file name or a 'Proof Submitted' indicator — do not render raw binary content). Style the detail view consistently with the existing emergency dark theme.",
+      "reqIds": [
+        "REQ-36"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-on-the-resourcemappage-sidebar-panel-and-hospital-map-marker-popups-ensure-each-hospital-entry-prominently-displays-its-full-address-the-address-field-must-be-clearly-labeled-e-g-address-and-displayed-as-a-distinct-line-in-both-the-sidebar-list-item-and-the-leaflet-marker-popup-on-hospitalfinderpage-tsx-similarly-ensure-the-full-address-is-displayed-prominently-on-each-hospitalcard-verify-the-address-field-from-the-backend-is-rendered-and-not-truncated",
+      "title": "On the ResourceMapPage sidebar panel and hospital map marker popups, ensure each hospital entry prominently displays its full address. The address field must be clearly labeled (e.g., 'Address:') and displayed as a distinct line in both the sidebar list item and the Leaflet marker popup. On HospitalFinderPage.tsx, similarly ensure the full address is displayed prominently on each HospitalCard — verify the `address` field from the backend is rendered and not truncated.",
+      "reqIds": [
+        "REQ-37"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-blood-type-detection-logic-in-blooddonorpage-tsx-rewrite-the-client-side-parser-that-extracts-blood-type-from-the-uploaded-proof-document-text-the-regex-pattern-matching-must-correctly-identify-all-valid-blood-types-a-a-b-b-ab-ab-o-o-by-searching-for-explicit-patterns-such-as-a-blood-group-a-blood-type-a-positive-etc-the-current-bug-misreads-a-as-b-ensure-the-matching-logic-prioritizes-the-most-specific-and-unambiguous-match-tests-patterns-in-the-correct-order-e-g-ab-before-a-or-b-and-o-before-other-types-and-does-not-produce-false-positives-for-image-files-jpg-png-where-text-extraction-is-not-possible-clearly-prompt-the-user-that-the-file-name-or-a-manually-entered-blood-type-confirmation-is-required-the-detected-blood-type-label-must-reflect-the-correctly-parsed-value-before-allowing-form-submission",
+      "title": "Fix the blood type detection logic in BloodDonorPage.tsx: rewrite the client-side parser that extracts blood type from the uploaded proof document text. The regex/pattern matching must correctly identify all valid blood types (A+, A-, B+, B-, AB+, AB-, O+, O-) by searching for explicit patterns such as 'A+', 'Blood Group: A+', 'Blood Type A Positive', etc. The current bug misreads 'A+' as 'B+' — ensure the matching logic prioritizes the most specific and unambiguous match, tests patterns in the correct order (e.g., AB before A or B, and O before other types), and does not produce false positives. For image files (JPG/PNG) where text extraction is not possible, clearly prompt the user that the file name or a manually entered blood type confirmation is required. The 'Detected Blood Type' label must reflect the correctly parsed value before allowing form submission.",
+      "reqIds": [
+        "REQ-38"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-completely-rewrite-the-resourcemappage-tsx-to-implement-a-fully-functional-leaflet-js-openstreetmap-interactive-map-for-nearby-hospitals-the-map-must-1-initialize-with-a-hardcoded-fallback-center-of-20-0-at-zoom-level-2-2-automatically-request-the-user-s-geolocation-on-page-mount-via-the-existing-usegeolocation-hook-3-once-geolocation-is-acquired-call-map-setview-to-re-center-at-the-user-s-coordinates-at-zoom-13-and-call-map-invalidatesize-to-fix-tile-rendering-4-use-openstreetmap-tile-layer-https-s-tile-openstreetmap-org-z-x-y-png-no-api-key-required-5-display-a-distinct-user-location-marker-at-the-user-s-coordinates-6-fetch-all-hospitals-from-the-backend-using-the-existing-query-hook-7-use-the-haversine-utility-frontend-src-utils-haversine-ts-to-compute-distance-from-user-coordinates-to-each-hospital-s-lat-lng-8-show-only-hospitals-within-5-km-as-map-markers-9-each-hospital-marker-popup-must-display-hospital-name-address-labeled-address-available-beds-color-coded-green-10-amber-1-9-red-0-contact-number-calculated-distance-formatted-via-formatdistance-and-a-get-directions-link-opening-google-maps-directions-in-a-new-tab-using-https-www-google-com-maps-dir-api-1-origin-userlat-userlng-destination-hospitallat-hospitallng-10-the-map-container-must-have-an-explicit-css-height-so-tiles-never-render-blank-or-misaligned",
+      "title": "Completely rewrite the ResourceMapPage.tsx to implement a fully functional Leaflet.js + OpenStreetMap interactive map for nearby hospitals. The map must: (1) initialize with a hardcoded fallback center of [20, 0] at zoom level 2; (2) automatically request the user's geolocation on page mount via the existing useGeolocation hook; (3) once geolocation is acquired, call map.setView() to re-center at the user's coordinates at zoom 13 and call map.invalidateSize() to fix tile rendering; (4) use OpenStreetMap tile layer (https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png) — no API key required; (5) display a distinct user-location marker at the user's coordinates; (6) fetch all hospitals from the backend using the existing query hook; (7) use the haversine utility (frontend/src/utils/haversine.ts) to compute distance from user coordinates to each hospital's lat/lng; (8) show only hospitals within 5 km as map markers; (9) each hospital marker popup must display: hospital name, address (labeled 'Address:'), available beds (color-coded: green ≥10, amber 1–9, red 0), contact number, calculated distance (formatted via formatDistance), and a 'Get Directions' link opening Google Maps directions in a new tab using https://www.google.com/maps/dir/?api=1&origin={userLat},{userLng}&destination={hospitalLat},{hospitalLng}; (10) the map container must have an explicit CSS height so tiles never render blank or misaligned.",
+      "reqIds": [
+        "REQ-39"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-on-the-resourcemappage-implement-a-scrollable-sidebar-panel-listing-all-hospitals-within-5-km-sorted-by-distance-nearest-first-each-sidebar-list-item-must-show-hospital-name-full-address-labeled-address-available-beds-color-coded-green-10-amber-1-9-red-0-formatted-distance-and-a-get-directions-link-clicking-a-list-item-must-call-map-flyto-to-pan-zoom-the-map-to-that-hospital-s-coordinates-and-programmatically-open-its-marker-popup-when-geolocation-is-not-yet-available-disable-get-directions-links-with-a-tooltip-enable-location-to-get-directions-the-sidebar-must-be-scrollable-when-the-list-overflows-and-styled-consistently-with-the-existing-emergency-dark-theme-charcoal-background-red-amber-accents",
+      "title": "On the ResourceMapPage, implement a scrollable sidebar panel listing all hospitals within 5 km sorted by distance (nearest first). Each sidebar list item must show: hospital name, full address (labeled 'Address:'), available beds (color-coded: green ≥10, amber 1–9, red 0), formatted distance, and a 'Get Directions' link. Clicking a list item must call map.flyTo() to pan/zoom the map to that hospital's coordinates and programmatically open its marker popup. When geolocation is not yet available, disable 'Get Directions' links with a tooltip 'Enable location to get directions'. The sidebar must be scrollable when the list overflows and styled consistently with the existing emergency dark theme (charcoal background, red/amber accents).",
+      "reqIds": [
+        "REQ-40"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-on-the-resourcemappage-when-a-user-clicks-any-nearby-hospital-marker-on-the-leaflet-map-or-any-hospital-entry-in-the-sidebar-list-immediately-open-the-marker-popup-and-display-a-clearly-visible-get-directions-button-link-this-link-must-open-google-maps-directions-in-a-new-browser-tab-using-the-url-format-https-www-google-com-maps-dir-api-1-origin-userlat-userlng-destination-hospitallat-hospitallng-using-the-user-s-live-geolocation-coordinates-as-the-origin-and-the-hospital-s-stored-lat-lng-as-the-destination-if-geolocation-is-not-yet-available-the-get-directions-link-must-be-visually-disabled-grayed-out-with-a-tooltip-reading-enable-location-to-get-directions-ensure-the-directions-link-is-rendered-as-a-proper-anchor-tag-with-target-blank-and-rel-noopener-noreferrer",
+      "title": "On the ResourceMapPage, when a user clicks any nearby hospital marker on the Leaflet map OR any hospital entry in the sidebar list, immediately open the marker popup AND display a clearly visible 'Get Directions' button/link. This link must open Google Maps directions in a new browser tab using the URL format: https://www.google.com/maps/dir/?api=1&origin={userLat},{userLng}&destination={hospitalLat},{hospitalLng} — using the user's live geolocation coordinates as the origin and the hospital's stored lat/lng as the destination. If geolocation is not yet available, the 'Get Directions' link must be visually disabled (grayed out) with a tooltip reading 'Enable location to get directions'. Ensure the directions link is rendered as a proper anchor tag with target='_blank' and rel='noopener noreferrer'.",
+      "reqIds": [
+        "REQ-41"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-completely-rewrite-the-blood-type-detection-logic-in-blooddonorpage-tsx-so-that-it-reliably-and-correctly-extracts-the-blood-type-from-the-uploaded-proof-document-the-new-parser-must-1-for-text-based-files-txt-pdf-rendered-as-text-apply-a-strict-ordered-regex-that-tests-for-ab-ab-a-a-b-b-o-o-in-that-exact-priority-order-most-specific-first-to-avoid-false-positives-e-g-match-ab-before-a-or-b-and-o-only-as-a-whole-word-token-search-for-patterns-including-bare-symbols-ab-o-labeled-formats-blood-group-a-blood-type-b-group-o-and-spelled-out-positivity-negativity-a-positive-b-negative-o-positive-2-for-image-files-jpg-png-where-text-extraction-is-impossible-do-not-attempt-regex-on-binary-base64-data-instead-display-a-clear-inline-message-image-files-cannot-be-analyzed-automatically-please-type-your-blood-type-below-and-show-a-small-manual-blood-type-selector-a-a-b-b-ab-ab-o-o-that-the-user-must-confirm-before-the-form-can-be-submitted-3-display-detected-blood-type-x-confirmation-label-only-when-a-blood-type-is-positively-identified-4-if-detection-fails-on-a-text-file-show-the-error-could-not-detect-blood-type-from-the-uploaded-proof-please-upload-a-document-clearly-showing-your-blood-group-and-block-form-submission-5-the-detected-or-manually-confirmed-blood-type-must-be-sent-to-the-backend-correctly-on-form-submission",
+      "title": "Completely rewrite the blood type detection logic in BloodDonorPage.tsx so that it reliably and correctly extracts the blood type from the uploaded proof document. The new parser must: (1) For text-based files (TXT, PDF rendered as text): apply a strict, ordered regex that tests for AB+, AB-, A+, A-, B+, B-, O+, O- in that exact priority order (most specific first) to avoid false positives — e.g., match 'AB' before 'A' or 'B', and 'O' only as a whole word/token. Search for patterns including bare symbols ('AB+', 'O-'), labeled formats ('Blood Group: A+', 'Blood Type: B-', 'Group: O+'), and spelled-out positivity/negativity ('A Positive', 'B Negative', 'O Positive'). (2) For image files (JPG/PNG) where text extraction is impossible: do NOT attempt regex on binary/base64 data — instead display a clear inline message: 'Image files cannot be analyzed automatically. Please type your blood type below.' and show a small manual blood type selector (A+, A-, B+, B-, AB+, AB-, O+, O-) that the user must confirm before the form can be submitted. (3) Display 'Detected Blood Type: [X]' confirmation label only when a blood type is positively identified. (4) If detection fails on a text file, show the error: 'Could not detect blood type from the uploaded proof. Please upload a document clearly showing your blood group.' and block form submission. (5) The detected or manually confirmed blood type must be sent to the backend correctly on form submission.",
+      "reqIds": [
+        "REQ-42"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-rewrite-resourcemappage-tsx-to-use-the-overpass-api-https-overpass-api-de-api-interpreter-to-fetch-real-nearby-hospitals-based-on-the-user-s-live-gps-coordinates-instead-of-only-querying-the-backend-on-page-mount-request-the-user-s-geolocation-via-the-existing-usegeolocation-hook-once-coordinates-are-acquired-query-overpass-for-nodes-with-amenity-hospital-or-healthcare-hospital-within-a-10-km-radius-compute-haversine-distances-from-user-to-each-result-sort-by-distance-nearest-first-and-display-only-hospitals-within-5-km-as-map-markers-and-in-the-sidebar-list-fall-back-gracefully-show-no-hospitals-found-within-5-km-if-the-overpass-query-returns-no-results-the-existing-backend-hospital-data-via-usegethospitals-should-still-be-merged-shown-alongside-overpass-results-so-registered-hospitals-are-not-lost",
+      "title": "Rewrite ResourceMapPage.tsx to use the Overpass API (https://overpass-api.de/api/interpreter) to fetch real nearby hospitals based on the user's live GPS coordinates instead of only querying the backend. On page mount, request the user's geolocation via the existing useGeolocation hook. Once coordinates are acquired, query Overpass for nodes with amenity=hospital or healthcare=hospital within a 10 km radius. Compute haversine distances from user to each result, sort by distance nearest-first, and display only hospitals within 5 km as map markers and in the sidebar list. Fall back gracefully (show 'No hospitals found within 5 km') if the Overpass query returns no results. The existing backend hospital data (via useGetHospitals) should still be merged/shown alongside Overpass results so registered hospitals are not lost.",
+      "reqIds": [
+        "REQ-43"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-on-resourcemappage-tsx-integrate-leaflet-routing-machine-for-in-map-turn-by-turn-directions-when-the-user-clicks-get-directions-on-a-hospital-marker-popup-or-sidebar-list-item-render-a-routing-control-using-l-routing-control-with-the-osrm-service-url-https-router-project-osrm-org-route-v1-plotting-waypoints-from-the-user-s-current-coordinates-to-the-selected-hospital-s-lat-lng-the-route-line-must-be-styled-with-the-app-s-accent-color-red-amber-e-g-ef4444-provide-a-close-directions-button-that-removes-the-routing-control-from-the-map-do-not-create-duplicate-routing-controls-remove-any-existing-control-before-adding-a-new-one",
+      "title": "On ResourceMapPage.tsx, integrate leaflet-routing-machine for in-map turn-by-turn directions. When the user clicks 'Get Directions' on a hospital marker popup or sidebar list item, render a Routing control using L.Routing.control with the OSRM service URL https://router.project-osrm.org/route/v1, plotting waypoints from the user's current coordinates to the selected hospital's lat/lng. The route line must be styled with the app's accent color (red/amber, e.g. #ef4444). Provide a 'Close Directions' button that removes the routing control from the map. Do not create duplicate routing controls — remove any existing control before adding a new one.",
+      "reqIds": [
+        "REQ-44"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-hospitalfinderpage-tsx-to-also-fetch-nearby-hospitals-from-the-overpass-api-using-the-user-s-gps-coordinates-same-query-as-resourcemappage-amenity-hospital-or-healthcare-hospital-within-10-km-radius-in-addition-to-the-backend-registered-hospitals-merge-the-two-data-sources-overpass-real-world-backend-registered-display-distance-address-extracted-from-overpass-tags-addr-street-addr-city-etc-and-phone-number-from-overpass-tags-phone-contact-phone-apply-the-existing-emergency-dark-theme-styling-consistently-charcoal-background-red-amber-accents-glowing-cards-preserve-all-existing-filtering-by-distance-by-availability-and-the-hospitalcard-component-structure",
+      "title": "Update HospitalFinderPage.tsx to also fetch nearby hospitals from the Overpass API using the user's GPS coordinates (same query as ResourceMapPage: amenity=hospital or healthcare=hospital within 10 km radius), in addition to the backend-registered hospitals. Merge the two data sources (Overpass real-world + backend registered). Display distance, address extracted from Overpass tags (addr:street, addr:city, etc.), and phone number from Overpass tags (phone, contact:phone). Apply the existing emergency dark theme styling consistently (charcoal background, red/amber accents, glowing cards). Preserve all existing filtering (by distance, by availability) and the HospitalCard component structure.",
+      "reqIds": [
+        "REQ-45"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-on-resourcemappage-tsx-each-hospital-marker-popup-and-sidebar-list-item-must-display-the-address-extracted-from-overpass-api-tags-addr-housenumber-addr-street-addr-city-addr-postcode-phone-number-from-phone-contact-phone-or-emergency-phone-tags-opening-hours-opening-hours-tag-and-a-24-7-emergency-badge-if-the-emergency-yes-or-healthcare-emergency-yes-tag-is-present-for-hospitals-sourced-from-the-backend-not-overpass-continue-showing-the-stored-address-and-contact-fields-all-popup-and-sidebar-content-must-be-styled-with-the-emergency-dark-theme-dark-backgrounds-red-amber-text-accents-consistent-typography",
+      "title": "On ResourceMapPage.tsx, each hospital marker popup and sidebar list item must display the address extracted from Overpass API tags (addr:housenumber + addr:street + addr:city + addr:postcode), phone number (from phone, contact:phone, or emergency:phone tags), opening hours (opening_hours tag), and a 24/7 Emergency badge if the emergency=yes or healthcare:emergency=yes tag is present. For hospitals sourced from the backend (not Overpass), continue showing the stored address and contact fields. All popup and sidebar content must be styled with the emergency dark theme (dark backgrounds, red/amber text accents, consistent typography).",
+      "reqIds": [
+        "REQ-46"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-completely-rewrite-the-blood-type-detection-logic-in-blooddonorpage-tsx-for-text-based-uploaded-files-txt-or-pdf-read-as-text-via-filereader-apply-a-strict-priority-ordered-regex-testing-ab-ab-a-a-b-b-o-o-in-that-exact-order-most-specific-first-patterns-must-cover-bare-symbols-e-g-ab-labeled-formats-blood-group-a-blood-type-b-group-o-and-spelled-out-forms-a-positive-b-negative-o-positive-for-image-files-jpg-png-where-binary-data-cannot-be-parsed-do-not-run-regex-on-raw-binary-base64-content-instead-display-the-inline-message-image-files-cannot-be-analyzed-automatically-please-select-your-blood-type-below-and-render-a-manual-blood-type-selector-a-a-b-b-ab-ab-o-o-that-the-user-must-confirm-before-submission-is-allowed-show-detected-blood-type-x-only-when-a-type-is-positively-identified-if-detection-fails-on-a-text-file-show-could-not-detect-blood-type-from-the-uploaded-proof-please-upload-a-document-clearly-showing-your-blood-group-and-block-form-submission-the-confirmed-or-detected-blood-type-must-be-sent-to-the-backend-on-form-submission",
+      "title": "Completely rewrite the blood type detection logic in BloodDonorPage.tsx. For text-based uploaded files (TXT or PDF read as text via FileReader): apply a strict priority-ordered regex testing AB+, AB-, A+, A-, B+, B-, O+, O- in that exact order (most specific first). Patterns must cover bare symbols (e.g. 'AB+'), labeled formats ('Blood Group: A+', 'Blood Type: B-', 'Group: O+'), and spelled-out forms ('A Positive', 'B Negative', 'O Positive'). For image files (JPG/PNG) where binary data cannot be parsed: do NOT run regex on raw binary/base64 content; instead display the inline message 'Image files cannot be analyzed automatically. Please select your blood type below.' and render a manual blood type selector (A+, A-, B+, B-, AB+, AB-, O+, O-) that the user must confirm before submission is allowed. Show 'Detected Blood Type: [X]' only when a type is positively identified. If detection fails on a text file, show 'Could not detect blood type from the uploaded proof. Please upload a document clearly showing your blood group.' and block form submission. The confirmed or detected blood type must be sent to the backend on form submission.",
+      "reqIds": [
+        "REQ-47"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -355,6 +473,64 @@
     {
       "id": "AR-30",
       "summary": "Remove 'Built with using caffeine.ai' footer text from all pages",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-31",
+      "summary": "Blood donor registration: require proof document upload (e.g., blood test report, donor card); auto-detect/extract blood group from the uploaded proof so user does not need to enter it manually",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-32",
+      "summary": "Volunteer registration: require proof document upload during registration; after registering, clicking on a volunteer entry shows their full details",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-33",
+      "summary": "Nearby hospitals on the map/list must display their full address prominently",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-34",
+      "summary": "Extend the backend Motoko actor to support a proof document reference on blood donor records. Add a `proofText` field (Text) to the BloodDonor type to store the submitted proof content (e.g., extracted text or filename). Add a `detectedBloodType` field (Text) that stores the blood type parsed from the proof. Update the `addBloodDonor` function to accept `proofText` and derive/store the blood type from it rather than requiring the caller to supply it directly.",
+      "reqIds": [
+        "REQ-32"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-36",
+      "summary": "Extend the backend Motoko actor to support a proof reference on Volunteer records. Add a `proofText` field (Text) to the Volunteer type to store proof content submitted during registration. The `addVolunteer` function must accept this `proofText` parameter and persist it with the volunteer record.",
+      "reqIds": [
+        "REQ-34"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-37",
+      "summary": "Fix blood group detection from uploaded proof documents: correctly parse and extract blood type (e.g., A+, B-, O+) from uploaded files; currently misreads A+ as B+",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-38",
+      "summary": "Implement Leaflet.js + OpenStreetMap on the Nearby Hospitals page: show user location marker, fetch and display nearby hospitals as markers, calculate distances using lat/lng (Haversine), and list hospitals sorted by distance",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-39",
+      "summary": "Integrate working Overpass API-based hospital detection (real GPS location, nearby hospitals fetched from OpenStreetMap, distance calculated via Haversine) into both HospitalFinderPage and ResourceMapPage, styled with the CrisisConnect dark emergency theme; also includes leaflet-routing-machine for in-map turn-by-turn directions",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-40",
+      "summary": "Fix blood donor proof document analysis: uploaded proof documents must be properly parsed to extract the correct blood type (not random); image files should prompt manual selection; text files must use strict ordered regex (AB+/AB- before A/B, O as whole token)",
       "reqIds": [],
       "status": "pending"
     }
