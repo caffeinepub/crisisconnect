@@ -1,75 +1,46 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "SOS Emergency Call (pre-login) & Emergency Contacts Notification (post-login)",
+  "title": "Fix volunteer registration and add volunteer markers to ResourceMapPage",
   "requirements": [
     {
-      "id": "REQ-16",
-      "summary": "Add emergency phone call link for unauthenticated SOS button users",
+      "id": "REQ-29",
+      "summary": "Fix volunteer registration form to persist data, update UI immediately on success, and display clear success/error messages",
       "acceptanceCriteria": [
-        "Unauthenticated users who click SOS see a modal with a clearly labeled 'Call Emergency Services (112)' or equivalent tel: link button.",
-        "Tapping/clicking the tel: link initiates a phone call on mobile devices and opens the dialer on desktop.",
-        "The SOS event is still recorded in the backend with geolocation coordinates and a null/anonymous user identity.",
-        "The existing 5-second countdown and cancel option remain functional.",
-        "No login is required to access this flow."
+        "Submitting the volunteer registration form calls the backend addVolunteer (or equivalent) mutation with the correct payload.",
+        "On success, the new volunteer appears in the volunteer directory list immediately (React Query cache is invalidated/refetched).",
+        "A success notification or inline message is shown after a volunteer is successfully added.",
+        "If the mutation fails, a visible error message is displayed and the form data is preserved.",
+        "The volunteer count on the Dashboard stat card reflects the newly added volunteer."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/sos/SOSModal.tsx",
+          "path": "frontend/src/pages/VolunteerPage.tsx",
           "operation": "modify",
-          "description": "Add a prominent 'Call Emergency Services (112)' button rendered as an <a href='tel:112'> link in the modal UI when the user is unauthenticated. Display this call-to-action immediately after the countdown completes or alongside the existing success message. Ensure the tel: link is styled as a large, high-contrast button (crisis-red or crisis-amber accent) that stands out. Keep the existing countdown, cancel button, and geolocation capture flows intact. The SOS event recording should continue to work for anonymous users. Position the emergency call link above or prominently next to any other actions in the modal."
-        }
-      ]
-    },
-    {
-      "id": "REQ-17",
-      "summary": "Add Emergency Contacts management feature for authenticated users",
-      "acceptanceCriteria": [
-        "Authenticated users can navigate to an 'Emergency Contacts' section.",
-        "A form allows adding a contact with name, phone number, and relationship fields — all required.",
-        "Submitted contacts are persisted in the backend under the authenticated user's principal.",
-        "The contacts list is displayed with the ability to remove any contact.",
-        "Unauthenticated users cannot access or modify emergency contacts."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/EmergencyContactsPage.tsx",
-          "operation": "create",
-          "description": "Create a new page for authenticated users to manage emergency contacts. Display a form at the top with three required text input fields: full name, phone number, and relationship (with validation). Below the form, show a list of the user's existing emergency contacts fetched via getMyEmergencyContacts(). Each contact card should display the contact's name, phone number, and relationship, with a 'Remove' button that calls removeEmergencyContact(contactId). Use the useGetMyEmergencyContacts and useAddEmergencyContact hooks for data fetching and mutations. Show a loading skeleton while fetching contacts. Include an empty state message if no contacts exist. Style the page consistently with the existing emergency dark theme (crisis-red/crisis-amber accents, glassmorphism cards). Ensure the page is only accessible to authenticated users by checking the identity from useInternetIdentity()."
+          "description": "Fix the volunteer registration form submission handler to correctly call the useRegisterVolunteer mutation hook with all required fields (name, skills, city, isActive). On success, invalidate the 'volunteers' query key to refresh the list immediately and display a success message using a toast or inline alert. On error, display a clear error message and preserve the form data. Ensure the form includes all fields required by the backend Volunteer interface (id is auto-generated, so exclude it from the form payload)."
         },
         {
           "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Add three new React Query hooks: useGetMyEmergencyContacts (query hook that calls actor.getMyEmergencyContacts() and returns Array<EmergencyContact>, enabled only when actor is available and user is authenticated), useAddEmergencyContact (mutation hook that accepts name, phone, and relationship parameters, calls actor.addEmergencyContact(), invalidates the 'myEmergencyContacts' query key on success, and shows a toast notification), and useRemoveEmergencyContact (mutation hook that accepts contactId as a parameter, calls actor.removeEmergencyContact(contactId), invalidates the 'myEmergencyContacts' query key on success, and shows a toast notification). Use queryKey ['myEmergencyContacts'] for the query hook. Follow the existing pattern in the file for mutation and query definitions."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Register a new route for the Emergency Contacts page. Add an authenticated route under the AppLayout with path '/emergency-contacts' that lazy-loads EmergencyContactsPage. Follow the existing pattern used for other authenticated routes (dashboard, hospitals, blood-donors, volunteers, resource-map). Ensure the route is wrapped in the authenticated layout so it inherits authentication and profile setup checks."
-        },
-        {
-          "path": "frontend/src/components/layout/AppLayout.tsx",
-          "operation": "modify",
-          "description": "Add a navigation link to the 'Emergency Contacts' page in both the desktop and mobile navigation menus. Insert the link between existing menu items (e.g., after 'Blood Donors' or 'Volunteers'). Use an appropriate icon (e.g., Users or Phone icon from lucide-react). Label the link 'Emergency Contacts' and set the href to '/emergency-contacts'. Follow the existing navigation link styling and active state logic used for other pages in the navigation bar."
+          "description": "Review the useRegisterVolunteer mutation hook to ensure it correctly calls actor.registerVolunteer with the Volunteer payload and properly invalidates the 'volunteers' and 'dashboardStats' query keys on success using queryClient.invalidateQueries. Verify error handling returns meaningful error messages to the UI. Confirm the mutation accepts the correct payload shape matching the backend Volunteer interface (excluding auto-generated id)."
         }
       ]
     },
     {
-      "id": "REQ-18",
-      "summary": "Display emergency contacts and emergency services call link for authenticated SOS users",
+      "id": "REQ-30",
+      "summary": "Add volunteer markers to ResourceMapPage map, displaying distinct markers with popups showing volunteer details, or a sidebar list if location data is unavailable",
       "acceptanceCriteria": [
-        "After the SOS countdown, the modal shows a list of all stored emergency contacts with a 'Call [Name]' tel: link for each.",
-        "A separate 'Call Emergency Services (112)' tel: link button is prominently shown in the same modal.",
-        "The SOS event is recorded in the backend with the user's principal, timestamp, and geolocation.",
-        "If the user has no emergency contacts added, a message prompts them to add contacts and still shows the emergency dial button.",
-        "All tel: links open the phone dialer on mobile and desktop.",
-        "The modal UI is consistent with the existing emergency dark theme (crisis-red/crisis-amber accent colors)."
+        "The ResourceMapPage fetches volunteer data from the backend and renders volunteer markers (or a sidebar volunteer list) on/alongside the Leaflet map.",
+        "Volunteer markers are visually distinct from hospital markers (different color or icon).",
+        "Clicking a volunteer marker opens a popup showing the volunteer's name, city, skills, and availability status.",
+        "The sidebar or map includes a section or legend distinguishing hospitals from volunteers.",
+        "The map does not break or throw errors if no volunteer location data is available; a graceful fallback (e.g., sidebar list of volunteers) is shown instead."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/sos/SOSModal.tsx",
+          "path": "frontend/src/pages/ResourceMapPage.tsx",
           "operation": "modify",
-          "description": "After the countdown completes for authenticated users, fetch the user's emergency contacts using the useGetMyEmergencyContacts hook. Display a list of contacts in the modal, each showing the contact's name and phone number as a tel: call link button (e.g., 'Call [Name]' with href='tel:[phone]'). Style each contact button with crisis-amber or crisis-red accent colors. Above or below the contacts list, display a large, prominent 'Call Emergency Services (112)' button as an <a href='tel:112'> link with high-contrast styling (larger font, bold, crisis-red background). If the user has no emergency contacts, show a friendly message like 'No emergency contacts added yet. Add contacts in your profile.' and still prominently display the emergency services call button. Ensure the tel: links are styled as buttons with good tap targets for mobile. The SOS event recording should include the authenticated user's principal. Maintain the existing countdown, cancel, and geolocation capture logic. Keep the modal UI consistent with the existing dark emergency theme."
+          "description": "Add volunteer markers to the Leaflet map by fetching volunteers using the existing useGetVolunteers hook. For each volunteer with a city field, derive approximate lat/lng coordinates using a best-effort city-to-coordinates mapping (e.g., a lookup table of major cities or use the volunteer's city as a text label). Render volunteer markers using a distinct color/icon (e.g., green or purple vs. the red hospital markers, potentially using the generated volunteer-icon.dim_128x128.png asset at frontend/public/assets/generated/volunteer-icon.dim_128x128.png as a custom Leaflet icon). Each volunteer marker popup should display the volunteer's name, city, skills as badges, and availability status (isActive). If volunteer location data cannot be derived, display volunteers in a dedicated sidebar section listing them by city. Add a legend or section header distinguishing hospitals from volunteers. Ensure graceful error handling if volunteer data is unavailable."
         }
       ]
     }

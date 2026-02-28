@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, MapPin, AlertTriangle } from 'lucide-react';
-import { useEmergencyAlerts } from '../../hooks/useQueries';
+import { useGetEmergencyAlerts } from '../../hooks/useQueries';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EmergencyAlert } from '../../backend';
 
@@ -52,7 +52,7 @@ function formatTimeAgo(date: Date): string {
 }
 
 export default function AlertFeed() {
-  const { data: alerts, isLoading } = useEmergencyAlerts();
+  const { data: alerts, isLoading } = useGetEmergencyAlerts();
 
   return (
     <div className="space-y-2.5">

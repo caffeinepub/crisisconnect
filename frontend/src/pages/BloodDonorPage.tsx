@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { Droplets, Plus, Search, Loader2 } from 'lucide-react';
-import { useBloodDonors, useRegisterBloodDonor } from '../hooks/useQueries';
+import { useGetBloodDonors, useRegisterBloodDonor } from '../hooks/useQueries';
 import DonorCard from '../components/blood/DonorCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import type { BloodDonor } from '../backend';
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function BloodDonorPage() {
-  const { data: donors, isLoading } = useBloodDonors();
+  const { data: donors, isLoading } = useGetBloodDonors();
   const registerDonor = useRegisterBloodDonor();
 
   const [showForm, setShowForm] = useState(false);
@@ -37,16 +36,13 @@ export default function BloodDonorPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const donor: BloodDonor = {
-      id: BigInt(0),
-      name: name.trim(),
-      bloodType,
-      city: city.trim(),
-      contact: contact.trim(),
-      registeredAt: BigInt(Date.now()) * BigInt(1_000_000),
-    };
     try {
-      await registerDonor.mutateAsync(donor);
+      await registerDonor.mutateAsync({
+        name: name.trim(),
+        bloodType,
+        city: city.trim(),
+        contact: contact.trim(),
+      });
       toast.success('You have been registered as a blood donor!');
       setName('');
       setCity('');

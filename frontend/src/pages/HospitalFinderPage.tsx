@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Hospital, MapPin, Loader2 } from 'lucide-react';
-import { useHospitals } from '../hooks/useQueries';
+import { useGetHospitals } from '../hooks/useQueries';
 import { useGeolocation } from '../hooks/useGeolocation';
 import HospitalCard from '../components/hospitals/HospitalCard';
 import { haversineDistance } from '../utils/haversine';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function HospitalFinderPage() {
-  const { data: hospitals, isLoading } = useHospitals();
+  const { data: hospitals, isLoading } = useGetHospitals();
   const { position, requestLocation, loading: geoLoading } = useGeolocation();
   const [search, setSearch] = useState('');
   const [filterAvailable, setFilterAvailable] = useState(false);

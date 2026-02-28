@@ -1,13 +1,16 @@
 # Specification
 
 ## Summary
-**Goal:** Add pre-login SOS emergency calling, post-login emergency contacts management, and SOS notification of stored contacts via tel: links.
+**Goal:** Fix volunteer registration so new volunteers are correctly saved and displayed, and add volunteer markers (or a sidebar fallback) to the ResourceMapPage map.
 
 **Planned changes:**
-- When an unauthenticated user triggers SOS, display a modal with a prominent "Call Emergency Services (112)" `tel:` link button; still capture geolocation and record the SOS event anonymously in the backend.
-- Add an Emergency Contacts page/section accessible to authenticated users from the navigation bar or profile area, with a form to add contacts (name, phone, relationship) and the ability to remove them.
-- Extend the backend Motoko actor with stable storage for emergency contacts keyed by user principal, and expose `addEmergencyContact`, `removeEmergencyContact`, `getMyEmergencyContacts`, and `getEmergencyContactsByPrincipal` functions.
-- When an authenticated user's SOS countdown completes, show a modal listing each stored emergency contact as a "Call [Name]" `tel:` link, plus a prominent "Call Emergency Services (112)" `tel:` link; record the SOS event with the user's principal, timestamp, and geolocation.
-- If an authenticated user has no emergency contacts, prompt them to add contacts and still show the emergency dial button in the SOS modal.
+- Fix the volunteer registration form on VolunteerPage to correctly call the backend `addVolunteer` mutation with the proper payload (name, skills, city, availability status).
+- After successful submission, invalidate/refetch the volunteer list so the new volunteer appears immediately without a page reload.
+- Show a success message on successful registration and a visible error message (with form data preserved) on failure.
+- Ensure the Dashboard volunteer count stat card reflects the newly added volunteer.
+- On ResourceMapPage, fetch volunteers using the existing `useGetVolunteers` hook and render volunteer markers on the Leaflet map, visually distinct from hospital markers.
+- Each volunteer marker popup shows the volunteer's name, city, skills (as badges), and availability status.
+- If volunteer records lack coordinate data, derive approximate positions from the city field using a best-effort approach, or display a sidebar list of volunteers as a graceful fallback.
+- Add a map legend or section distinguishing hospital markers from volunteer markers.
 
-**User-visible outcome:** Unauthenticated users can immediately call emergency services via a tel: link when triggering SOS. Logged-in users can manage a personal emergency contacts list and, upon triggering SOS, see direct call links for each contact alongside the emergency services dial button.
+**User-visible outcome:** Users can register volunteers and see them appear instantly in the directory and on the resource map (or sidebar), with clear success/error feedback throughout.

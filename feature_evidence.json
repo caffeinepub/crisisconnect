@@ -2,32 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-when-the-sos-button-is-triggered-by-an-unauthenticated-pre-login-user-immediately-prompt-the-browser-to-initiate-a-phone-call-to-the-universal-emergency-number-e-g-tel-112-or-tel-911-display-a-modal-with-a-visible-call-emergency-services-button-rendered-as-an-a-href-tel-112-link-so-the-user-can-connect-directly-to-emergency-services-without-needing-an-account-the-existing-countdown-cancel-flow-should-still-capture-geolocation-and-record-the-sos-event-in-the-backend-anonymously-but-the-primary-cta-must-be-the-emergency-call-link",
-      "featureTitle": "When the SOS button is triggered by an unauthenticated (pre-login) user, immediately prompt the browser to initiate a phone call to the universal emergency number (e.g., tel:112 or tel:911). Display a modal with a visible 'Call Emergency Services' button (rendered as an <a href='tel:112'> link) so the user can connect directly to emergency services without needing an account. The existing countdown/cancel flow should still capture geolocation and record the SOS event in the backend (anonymously), but the primary CTA must be the emergency call link.",
+      "featureId": "feature-fix-the-volunteer-registration-form-on-volunteerpage-so-that-submitting-a-new-volunteer-record-name-skills-city-availability-status-correctly-calls-the-backend-mutation-and-persists-the-data-after-a-successful-submission-the-volunteer-must-appear-in-the-volunteer-directory-list-without-requiring-a-page-reload-display-a-success-message-on-successful-registration-and-a-clear-error-message-if-the-submission-fails",
+      "featureTitle": "Fix the volunteer registration form on VolunteerPage so that submitting a new volunteer record (name, skills, city, availability status) correctly calls the backend mutation and persists the data. After a successful submission, the volunteer must appear in the volunteer directory list without requiring a page reload. Display a success message on successful registration and a clear error message if the submission fails.",
       "files": [
-        "frontend/src/components/sos/SOSModal.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-16"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-add-an-emergency-contacts-management-feature-for-authenticated-users-provide-a-dedicated-page-or-settings-section-accessible-from-the-navigation-bar-or-user-profile-area-where-a-logged-in-user-can-add-view-and-remove-emergency-contacts-each-contact-record-must-include-full-name-phone-number-and-relationship-e-g-family-friend-colleague-store-emergency-contacts-in-the-backend-associated-with-the-authenticated-user-s-principal-id",
-      "featureTitle": "Add an Emergency Contacts management feature for authenticated users. Provide a dedicated page or settings section (accessible from the navigation bar or user profile area) where a logged-in user can add, view, and remove emergency contacts. Each contact record must include: full name, phone number, and relationship (e.g., family, friend, colleague). Store emergency contacts in the backend associated with the authenticated user's principal ID.",
-      "files": [
-        "frontend/src/App.tsx",
-        "frontend/src/components/layout/AppLayout.tsx",
         "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/EmergencyContactsPage.tsx"
+        "frontend/src/pages/VolunteerPage.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -38,15 +17,15 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-17"
+        "REQ-29"
       ],
       "confidence": "high"
     },
     {
-      "featureId": "feature-when-an-authenticated-user-triggers-the-sos-button-after-the-countdown-completes-1-retrieve-the-user-s-stored-emergency-contacts-from-the-backend-and-display-them-in-the-sos-confirmation-modal-as-a-list-of-notify-entries-showing-each-contact-s-name-and-phone-number-as-a-tel-call-link-2-also-display-a-prominent-call-emergency-services-112-tel-link-button-alongside-the-contacts-the-sos-event-must-still-be-recorded-in-the-backend-with-timestamp-geolocation-coordinates-and-the-authenticated-user-s-identity-make-it-clear-in-the-ui-which-contacts-will-be-notified-via-manual-call-links-since-automated-sms-push-is-not-supported-and-provide-a-direct-dial-button-for-each",
-      "featureTitle": "When an authenticated user triggers the SOS button, after the countdown completes: (1) retrieve the user's stored emergency contacts from the backend and display them in the SOS confirmation modal as a list of 'Notify' entries showing each contact's name and phone number as a tel: call link; (2) also display a prominent 'Call Emergency Services (112)' tel: link button alongside the contacts. The SOS event must still be recorded in the backend with timestamp, geolocation coordinates, and the authenticated user's identity. Make it clear in the UI which contacts will be notified (via manual call links, since automated SMS/push is not supported) and provide a direct dial button for each.",
+      "featureId": "feature-add-volunteer-markers-to-the-resourcemappage-leaflet-map-for-each-registered-volunteer-who-has-a-city-that-can-be-geocoded-or-who-has-lat-lng-coordinates-stored-in-the-backend-display-a-distinct-marker-visually-different-from-hospital-markers-on-the-map-each-volunteer-marker-popup-must-show-the-volunteer-s-name-city-skills-as-badges-and-availability-status-volunteers-should-be-fetched-from-the-backend-using-the-existing-usegetvolunteers-query-hook-if-volunteer-records-do-not-contain-lat-lng-coordinates-derive-approximate-positions-from-their-city-field-using-a-best-effort-approach-or-display-them-in-a-dedicated-sidebar-section-listing-volunteers-near-the-user",
+      "featureTitle": "Add volunteer markers to the ResourceMapPage Leaflet map. For each registered volunteer who has a city that can be geocoded or who has lat/lng coordinates stored in the backend, display a distinct marker (visually different from hospital markers) on the map. Each volunteer marker popup must show the volunteer's name, city, skills (as badges), and availability status. Volunteers should be fetched from the backend using the existing useGetVolunteers query hook. If volunteer records do not contain lat/lng coordinates, derive approximate positions from their city field using a best-effort approach or display them in a dedicated sidebar section listing volunteers near the user.",
       "files": [
-        "frontend/src/components/sos/SOSModal.tsx"
+        "frontend/src/pages/ResourceMapPage.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -57,7 +36,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-18"
+        "REQ-30"
       ],
       "confidence": "high"
     }

@@ -1,12 +1,12 @@
 import React from 'react';
 import { Hospital, Droplets, Users, Bed, Activity, Bell } from 'lucide-react';
-import { useDashboardStats } from '../hooks/useQueries';
+import { useGetDashboardStats } from '../hooks/useQueries';
 import StatCard from '../components/dashboard/StatCard';
 import AlertFeed from '../components/alerts/AlertFeed';
 import AlertCreationForm from '../components/alerts/AlertCreationForm';
 
 export default function DashboardPage() {
-  const { data: stats, isLoading } = useDashboardStats();
+  const { data: stats, isLoading } = useGetDashboardStats();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

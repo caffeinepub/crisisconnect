@@ -22,10 +22,8 @@ export default function SOSModal({ open, onClose }: SOSModalProps) {
   const { identity } = useInternetIdentity();
   const isAuthenticated = !!identity;
 
-  // Only fetch emergency contacts when authenticated and modal is open and SOS is sent
-  const { data: emergencyContacts = [], isLoading: contactsLoading } = useGetMyEmergencyContacts(
-    isAuthenticated && open && sosState === 'sent'
-  );
+  // Fetch emergency contacts — always call the hook, filter usage by auth state
+  const { data: emergencyContacts = [], isLoading: contactsLoading } = useGetMyEmergencyContacts();
 
   const reset = useCallback(() => {
     setSosState('idle');
@@ -72,11 +70,8 @@ export default function SOSModal({ open, onClose }: SOSModalProps) {
     setSosState('sending');
     try {
       await recordSOS.mutateAsync({
-        id: BigInt(0),
         lat: position?.lat ?? 0,
         lng: position?.lng ?? 0,
-        timestamp: BigInt(Date.now()) * BigInt(1_000_000),
-        userId: undefined,
       });
       setSosState('sent');
       toast.error('🚨 SOS Alert Sent! Emergency services have been notified.', {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 7,
+  "projectStateVersion": 13,
   "summary": "CrisisConnect – AI Emergency Response & Resource Mapper web app. Detects user location, shows nearest hospitals, available blood donors, sends emergency alerts to nearby volunteers, and includes an AI chatbot for first-aid guidance. Features an SOS button (accessible before and after login) with extraordinary/advanced features. Tech stack: React/Tailwind frontend, Node.js/Firebase backend, Google Maps API, OpenAI API.",
   "architectural_notes": [
     "Frontend: React with Tailwind CSS",
@@ -11,9 +11,12 @@
     "SOS pre-login: triggers emergency call/dial to emergency services; SOS post-login: notifies user-defined emergency contacts + emergency services"
   ],
   "known_issues": [
-    "Map page does not correctly show nearby hospitals with user location tracking and distance calculation"
+    "Map page does not correctly show nearby hospitals with user location tracking and distance calculation",
+    "Map does not filter hospitals to within 5 km radius; no directions feature on hospital marker click",
+    "Volunteer registration form does not successfully add/save volunteer records",
+    "Volunteers are not displayed as markers on the ResourceMapPage map"
   ],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "existing_features": [
     {
       "id": "feature-design-and-apply-a-bold-emergency-response-visual-theme-deep-charcoal-dark-background-vibrant-red-and-amber-accent-colors-clean-sans-serif-typography-card-based-layout-with-glowing-alert-indicators-and-a-persistent-top-navigation-bar-showing-the-app-logo-and-a-prominent-sos-button",
@@ -150,6 +153,94 @@
         "REQ-18"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-on-the-resourcemappage-after-obtaining-the-user-s-geolocation-filter-the-hospital-list-and-map-markers-to-show-only-hospitals-whose-haversine-distance-from-the-user-s-coordinates-is-5-km-hospitals-beyond-5-km-must-not-appear-as-markers-on-the-map-or-in-the-sidebar-list-display-a-clear-message-e-g-no-hospitals-found-within-5-km-if-no-hospitals-fall-within-the-radius",
+      "title": "On the ResourceMapPage, after obtaining the user's geolocation, filter the hospital list and map markers to show only hospitals whose haversine distance from the user's coordinates is ≤ 5 km. Hospitals beyond 5 km must not appear as markers on the map or in the sidebar list. Display a clear message (e.g., 'No hospitals found within 5 km') if no hospitals fall within the radius.",
+      "reqIds": [
+        "REQ-20"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-leaflet-map-on-resourcemappage-so-it-renders-tiles-and-markers-correctly-on-first-load-the-map-must-initialize-with-a-valid-center-coordinate-use-a-sensible-fallback-such-as-20-0-if-geolocation-is-not-yet-available-re-center-to-the-user-s-coordinates-once-geolocation-is-acquired-and-properly-size-its-container-so-tiles-are-not-blank-or-misaligned",
+      "title": "Fix the Leaflet map on ResourceMapPage so it renders tiles and markers correctly on first load. The map must initialize with a valid center coordinate (use a sensible fallback such as [20, 0] if geolocation is not yet available), re-center to the user's coordinates once geolocation is acquired, and properly size its container so tiles are not blank or misaligned.",
+      "reqIds": [
+        "REQ-21"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-when-a-user-clicks-on-a-hospital-marker-on-the-resourcemappage-map-or-on-a-hospital-entry-in-the-sidebar-list-open-the-marker-popup-and-display-a-get-directions-link-that-opens-google-maps-directions-from-the-user-s-current-coordinates-to-the-hospital-s-coordinates-in-a-new-browser-tab-using-the-url-format-https-www-google-com-maps-dir-api-1-origin-userlat-userlng-destination-hospitallat-hospitallng",
+      "title": "When a user clicks on a hospital marker on the ResourceMapPage map (or on a hospital entry in the sidebar list), open the marker popup AND display a 'Get Directions' link that opens Google Maps directions from the user's current coordinates to the hospital's coordinates in a new browser tab, using the URL format: https://www.google.com/maps/dir/?api=1&origin={userLat},{userLng}&destination={hospitalLat},{hospitalLng}",
+      "reqIds": [
+        "REQ-22"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-rewrite-the-resourcemappage-leaflet-map-initialization-to-guarantee-correct-rendering-on-first-load-1-initialize-the-map-with-a-hardcoded-fallback-center-of-20-0-and-zoom-level-2-when-geolocation-is-not-yet-available-2-once-geolocation-is-acquired-call-map-setview-to-re-center-to-the-user-s-coordinates-at-zoom-13-3-ensure-the-map-container-has-an-explicit-css-height-e-g-100-filling-its-parent-which-must-itself-have-a-fixed-height-so-leaflet-never-renders-blank-or-misaligned-tiles-4-call-map-invalidatesize-after-the-container-becomes-visible-or-after-any-layout-change",
+      "title": "Rewrite the ResourceMapPage Leaflet map initialization to guarantee correct rendering on first load: (1) initialize the map with a hardcoded fallback center of [20, 0] and zoom level 2 when geolocation is not yet available; (2) once geolocation is acquired, call map.setView() to re-center to the user's coordinates at zoom 13; (3) ensure the map container has an explicit CSS height (e.g., 100% filling its parent, which must itself have a fixed height) so Leaflet never renders blank or misaligned tiles; (4) call map.invalidateSize() after the container becomes visible or after any layout change.",
+      "reqIds": [
+        "REQ-23"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-usegeolocation-hook-integration-in-resourcemappage-so-that-location-detection-is-triggered-automatically-on-page-mount-call-requestlocation-inside-a-useeffect-with-an-empty-dependency-array-display-a-loading-spinner-or-status-message-detecting-your-location-while-geolocation-is-in-progress-if-geolocation-is-denied-or-fails-show-a-clearly-visible-error-banner-unable-to-detect-location-please-enable-location-access-in-your-browser-settings-instead-of-a-blank-or-broken-map",
+      "title": "Fix the useGeolocation hook integration in ResourceMapPage so that location detection is triggered automatically on page mount (call requestLocation() inside a useEffect with an empty dependency array). Display a loading spinner or status message ('Detecting your location…') while geolocation is in progress. If geolocation is denied or fails, show a clearly visible error banner ('Unable to detect location. Please enable location access in your browser settings.') instead of a blank or broken map.",
+      "reqIds": [
+        "REQ-24"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-5-km-hospital-filtering-logic-on-resourcemappage-after-geolocation-is-acquired-use-the-haversine-utility-frontend-src-utils-haversine-ts-to-compute-the-distance-from-the-user-s-coordinates-to-each-hospital-s-lat-lng-retain-only-hospitals-where-distance-5-km-apply-this-filtered-list-to-both-the-map-markers-and-the-sidebar-panel-if-the-filtered-list-is-empty-display-the-message-no-hospitals-found-within-5-km-in-the-sidebar-and-no-hospital-markers-on-the-map-ensure-the-filter-re-runs-whenever-geolocation-coordinates-update",
+      "title": "Fix the 5 km hospital filtering logic on ResourceMapPage: after geolocation is acquired, use the haversine utility (frontend/src/utils/haversine.ts) to compute the distance from the user's coordinates to each hospital's lat/lng. Retain only hospitals where distance ≤ 5 km. Apply this filtered list to both the map markers and the sidebar panel. If the filtered list is empty, display the message 'No hospitals found within 5 km' in the sidebar and no hospital markers on the map. Ensure the filter re-runs whenever geolocation coordinates update.",
+      "reqIds": [
+        "REQ-25"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-hospital-marker-rendering-on-the-leaflet-map-in-resourcemappage-for-each-hospital-within-5-km-create-a-leaflet-marker-at-the-hospital-s-lat-lng-coordinates-each-marker-s-popup-must-display-the-hospital-name-address-available-beds-color-coded-green-10-amber-1-9-red-0-contact-number-and-the-calculated-distance-formatted-via-the-formatdistance-helper-ensure-all-markers-are-added-to-the-map-after-the-map-instance-is-fully-initialized-and-the-tile-layer-is-loaded-remove-and-re-add-markers-when-the-filtered-hospital-list-changes-to-avoid-stale-markers",
+      "title": "Fix hospital marker rendering on the Leaflet map in ResourceMapPage: for each hospital within 5 km, create a Leaflet marker at the hospital's [lat, lng] coordinates. Each marker's popup must display the hospital name, address, available beds (color-coded: green ≥ 10, amber 1–9, red 0), contact number, and the calculated distance formatted via the formatDistance helper. Ensure all markers are added to the map after the map instance is fully initialized and the tile layer is loaded; remove and re-add markers when the filtered hospital list changes to avoid stale markers.",
+      "reqIds": [
+        "REQ-26"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-get-directions-feature-on-resourcemappage-each-hospital-marker-popup-and-each-sidebar-list-item-must-include-a-get-directions-link-the-link-must-open-in-a-new-browser-tab-using-the-google-maps-directions-url-format-https-www-google-com-maps-dir-api-1-origin-userlat-userlng-destination-hospitallat-hospitallng-the-user-s-current-geolocation-coordinates-must-be-used-as-the-origin-if-geolocation-is-not-yet-available-the-link-should-be-disabled-or-hidden-with-a-tooltip-enable-location-to-get-directions",
+      "title": "Fix the 'Get Directions' feature on ResourceMapPage: each hospital marker popup and each sidebar list item must include a 'Get Directions' link. The link must open in a new browser tab using the Google Maps directions URL format: https://www.google.com/maps/dir/?api=1&origin={userLat},{userLng}&destination={hospitalLat},{hospitalLng}. The user's current geolocation coordinates must be used as the origin; if geolocation is not yet available, the link should be disabled or hidden with a tooltip 'Enable location to get directions'.",
+      "reqIds": [
+        "REQ-27"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-sidebar-panel-on-resourcemappage-ensure-it-lists-all-hospitals-within-5-km-sorted-by-distance-nearest-first-each-list-item-must-show-the-hospital-name-available-beds-color-coded-and-formatted-distance-clicking-a-list-item-must-call-map-flyto-or-map-setview-to-pan-zoom-the-map-to-that-hospital-s-coordinates-and-programmatically-open-its-popup-the-sidebar-must-be-scrollable-when-the-list-overflows-its-container-and-styled-consistently-with-the-existing-emergency-dark-theme-charcoal-background-red-amber-accents",
+      "title": "Fix the sidebar panel on ResourceMapPage: ensure it lists all hospitals within 5 km sorted by distance (nearest first). Each list item must show the hospital name, available beds (color-coded), and formatted distance. Clicking a list item must call map.flyTo() (or map.setView()) to pan/zoom the map to that hospital's coordinates and programmatically open its popup. The sidebar must be scrollable when the list overflows its container and styled consistently with the existing emergency dark theme (charcoal background, red/amber accents).",
+      "reqIds": [
+        "REQ-28"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-volunteer-registration-form-on-volunteerpage-so-that-submitting-a-new-volunteer-record-name-skills-city-availability-status-correctly-calls-the-backend-mutation-and-persists-the-data-after-a-successful-submission-the-volunteer-must-appear-in-the-volunteer-directory-list-without-requiring-a-page-reload-display-a-success-message-on-successful-registration-and-a-clear-error-message-if-the-submission-fails",
+      "title": "Fix the volunteer registration form on VolunteerPage so that submitting a new volunteer record (name, skills, city, availability status) correctly calls the backend mutation and persists the data. After a successful submission, the volunteer must appear in the volunteer directory list without requiring a page reload. Display a success message on successful registration and a clear error message if the submission fails.",
+      "reqIds": [
+        "REQ-29"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-volunteer-markers-to-the-resourcemappage-leaflet-map-for-each-registered-volunteer-who-has-a-city-that-can-be-geocoded-or-who-has-lat-lng-coordinates-stored-in-the-backend-display-a-distinct-marker-visually-different-from-hospital-markers-on-the-map-each-volunteer-marker-popup-must-show-the-volunteer-s-name-city-skills-as-badges-and-availability-status-volunteers-should-be-fetched-from-the-backend-using-the-existing-usegetvolunteers-query-hook-if-volunteer-records-do-not-contain-lat-lng-coordinates-derive-approximate-positions-from-their-city-field-using-a-best-effort-approach-or-display-them-in-a-dedicated-sidebar-section-listing-volunteers-near-the-user",
+      "title": "Add volunteer markers to the ResourceMapPage Leaflet map. For each registered volunteer who has a city that can be geocoded or who has lat/lng coordinates stored in the backend, display a distinct marker (visually different from hospital markers) on the map. Each volunteer marker popup must show the volunteer's name, city, skills (as badges), and availability status. Volunteers should be fetched from the backend using the existing useGetVolunteers query hook. If volunteer records do not contain lat/lng coordinates, derive approximate positions from their city field using a best-effort approach or display them in a dedicated sidebar section listing volunteers near the user.",
+      "reqIds": [
+        "REQ-30"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -233,6 +324,24 @@
       "reqIds": [
         "REQ-19"
       ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-27",
+      "summary": "Map: filter and show only available hospitals within 5 km of user location; clicking a hospital marker shows directions to it",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-28",
+      "summary": "Fix volunteer registration: adding a volunteer does not work (data not saved/submitted correctly)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-29",
+      "summary": "Show volunteers on the ResourceMapPage map as markers, similar to hospitals",
+      "reqIds": [],
       "status": "pending"
     }
   ],

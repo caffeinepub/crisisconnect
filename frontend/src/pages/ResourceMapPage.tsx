@@ -1,507 +1,638 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Map as MapIcon, MapPin, Loader2, AlertCircle, Navigation, BedDouble, Phone } from 'lucide-react';
-import { useHospitals, useBloodDonors } from '../hooks/useQueries';
-import { useGeolocation } from '../hooks/useGeolocation';
-import { haversineDistance, formatDistance } from '../utils/haversine';
-import type { Hospital } from '../backend';
+import { useGetHospitals, useGetVolunteers } from '../hooks/useQueries';
+import { Loader2, MapPin, Navigation, Users, Building2, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
-// Leaflet is loaded via CDN in index.html as global `L`
-declare const L: any;
+// Use any for the Leaflet global since the package is loaded via CDN
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LeafletMap = any;
 
-// City coordinates lookup for blood donor map markers
+// City to coordinates lookup table (best-effort for major cities)
 const CITY_COORDS: Record<string, [number, number]> = {
-  'new york': [40.7128, -74.006],
+  // Pakistan
+  'karachi': [24.8607, 67.0011],
+  'lahore': [31.5204, 74.3587],
+  'islamabad': [33.6844, 73.0479],
+  'rawalpindi': [33.5651, 73.0169],
+  'faisalabad': [31.4504, 73.1350],
+  'multan': [30.1575, 71.5249],
+  'peshawar': [34.0151, 71.5249],
+  'quetta': [30.1798, 66.9750],
+  'hyderabad': [25.3960, 68.3578],
+  'gujranwala': [32.1877, 74.1945],
+  // India
+  'mumbai': [19.0760, 72.8777],
+  'delhi': [28.6139, 77.2090],
+  'new delhi': [28.6139, 77.2090],
+  'bangalore': [12.9716, 77.5946],
+  'bengaluru': [12.9716, 77.5946],
+  'chennai': [13.0827, 80.2707],
+  'kolkata': [22.5726, 88.3639],
+  'pune': [18.5204, 73.8567],
+  'ahmedabad': [23.0225, 72.5714],
+  'jaipur': [26.9124, 75.7873],
+  // USA
+  'new york': [40.7128, -74.0060],
   'los angeles': [34.0522, -118.2437],
   'chicago': [41.8781, -87.6298],
   'houston': [29.7604, -95.3698],
-  'phoenix': [33.4484, -112.074],
+  'phoenix': [33.4484, -112.0740],
+  'philadelphia': [39.9526, -75.1652],
+  'san antonio': [29.4241, -98.4936],
+  'san diego': [32.7157, -117.1611],
+  'dallas': [32.7767, -96.7970],
+  'san francisco': [37.7749, -122.4194],
+  // UK
   'london': [51.5074, -0.1278],
-  'paris': [48.8566, 2.3522],
-  'berlin': [52.52, 13.405],
-  'tokyo': [35.6762, 139.6503],
-  'mumbai': [19.076, 72.8777],
-  'delhi': [28.6139, 77.209],
-  'bangalore': [12.9716, 77.5946],
-  'chennai': [13.0827, 80.2707],
-  'kolkata': [22.5726, 88.3639],
-  'hyderabad': [17.385, 78.4867],
-  'karachi': [24.8607, 67.0011],
-  'lahore': [31.5204, 74.3587],
-  'dhaka': [23.8103, 90.4125],
+  'manchester': [53.4808, -2.2426],
+  'birmingham': [52.4862, -1.8904],
+  'glasgow': [55.8642, -4.2518],
+  'edinburgh': [55.9533, -3.1883],
+  // Other major cities
+  'dubai': [25.2048, 55.2708],
+  'abu dhabi': [24.4539, 54.3773],
+  'riyadh': [24.7136, 46.6753],
   'cairo': [30.0444, 31.2357],
   'nairobi': [-1.2921, 36.8219],
+  'lagos': [6.5244, 3.3792],
+  'johannesburg': [-26.2041, 28.0473],
   'sydney': [-33.8688, 151.2093],
+  'melbourne': [-37.8136, 144.9631],
   'toronto': [43.6532, -79.3832],
-  'dubai': [25.2048, 55.2708],
+  'vancouver': [49.2827, -123.1207],
+  'paris': [48.8566, 2.3522],
+  'berlin': [52.5200, 13.4050],
+  'madrid': [40.4168, -3.7038],
+  'rome': [41.9028, 12.4964],
+  'amsterdam': [52.3676, 4.9041],
+  'tokyo': [35.6762, 139.6503],
+  'beijing': [39.9042, 116.4074],
+  'shanghai': [31.2304, 121.4737],
   'singapore': [1.3521, 103.8198],
+  'bangkok': [13.7563, 100.5018],
+  'jakarta': [-6.2088, 106.8456],
+  'kuala lumpur': [3.1390, 101.6869],
+  'dhaka': [23.8103, 90.4125],
+  'colombo': [6.9271, 79.8612],
+  'kathmandu': [27.7172, 85.3240],
 };
 
 function getCityCoords(city: string): [number, number] | null {
-  const lower = city.toLowerCase().trim();
+  const normalized = city.toLowerCase().trim();
+  if (CITY_COORDS[normalized]) return CITY_COORDS[normalized];
   for (const [key, coords] of Object.entries(CITY_COORDS)) {
-    if (lower.includes(key) || key.includes(lower)) return coords;
+    if (normalized.includes(key) || key.includes(normalized)) {
+      return coords;
+    }
   }
   return null;
 }
 
-interface HospitalWithDistance extends Hospital {
-  distance: number | null;
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-interface CityEntry {
-  city: string;
-  count: number;
-  types: string[];
+// Safe accessor for the global Leaflet object loaded via CDN
+function getL(): LeafletMap {
+  return (window as unknown as Record<string, LeafletMap>)['L'] ?? null;
 }
 
-function getBedColor(beds: number): string {
-  if (beds === 0) return '#e63946';
-  if (beds < 10) return '#e63946';
-  if (beds <= 50) return '#f4a261';
-  return '#52b788';
-}
-
-function getBedLabel(beds: number): string {
-  if (beds === 0) return 'No beds';
-  if (beds < 10) return 'Critical';
-  if (beds <= 50) return 'Limited';
-  return 'Available';
-}
+type ActiveTab = 'hospitals' | 'volunteers';
 
 export default function ResourceMapPage() {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markerRefs = useRef<Record<number, any>>({});
-
-  const { data: hospitals } = useHospitals();
-  const { data: donors } = useBloodDonors();
-  const { position, requestLocation, loading: geoLoading, error: geoError } = useGeolocation();
+  const mapInstanceRef = useRef<LeafletMap>(null);
+  const hospitalMarkersRef = useRef<LeafletMap[]>([]);
+  const volunteerMarkersRef = useRef<LeafletMap[]>([]);
 
   const [mapReady, setMapReady] = useState(false);
-  const [leafletReady, setLeafletReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('hospitals');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState('');
 
-  // Hospitals enriched with distance, sorted nearest first
-  const hospitalsWithDistance: HospitalWithDistance[] = React.useMemo(() => {
-    if (!hospitals?.length) return [];
-    const enriched = hospitals.map(h => ({
-      ...h,
-      distance: position ? haversineDistance(position.lat, position.lng, h.lat, h.lng) : null,
-    }));
-    if (position) {
-      enriched.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
-    }
-    return enriched;
-  }, [hospitals, position]);
+  const { data: hospitals = [], isLoading: hospitalsLoading } = useGetHospitals();
+  const { data: volunteers = [], isLoading: volunteersLoading } = useGetVolunteers();
 
-  // Check if Leaflet is available
-  useEffect(() => {
-    const check = () => {
-      if (typeof L !== 'undefined') {
-        setLeafletReady(true);
-      } else {
-        setTimeout(check, 200);
-      }
-    };
-    check();
-  }, []);
-
-  // Auto-request location on mount
-  useEffect(() => {
-    requestLocation().catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const isLoading = hospitalsLoading || volunteersLoading;
 
   // Initialize map
   useEffect(() => {
-    if (!leafletReady || !mapRef.current || mapInstanceRef.current) return;
+    if (!mapRef.current || mapInstanceRef.current) return;
 
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    });
+    const initMap = () => {
+      const L = getL();
+      if (!L || !mapRef.current) return;
 
-    const map = L.map(mapRef.current, {
-      center: [20, 0] as [number, number],
-      zoom: 2,
-      zoomControl: true,
-    });
+      // Fix default icon paths
+      try {
+        delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        });
+      } catch (_) { /* ignore */ }
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map);
+      const map = L.map(mapRef.current, {
+        center: [30.0, 70.0],
+        zoom: 5,
+        zoomControl: true,
+      });
 
-    mapInstanceRef.current = map;
-    setMapReady(true);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map);
+
+      mapInstanceRef.current = map;
+      setTimeout(() => {
+        map.invalidateSize();
+        setMapReady(true);
+      }, 300);
+    };
+
+    // Ensure Leaflet CSS is loaded
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
+    if (getL()) {
+      initMap();
+    } else if (!document.getElementById('leaflet-js')) {
+      const script = document.createElement('script');
+      script.id = 'leaflet-js';
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = initMap;
+      document.head.appendChild(script);
+    } else {
+      // Script tag exists but may still be loading — poll
+      const poll = setInterval(() => {
+        if (getL()) {
+          clearInterval(poll);
+          initMap();
+        }
+      }, 100);
+      return () => clearInterval(poll);
+    }
 
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
-        markerRefs.current = {};
         setMapReady(false);
       }
     };
-  }, [leafletReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Add / update user location marker and re-center map
+  // Invalidate size when sidebar toggles
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current || !position) return;
-    const map = mapInstanceRef.current;
+    if (mapInstanceRef.current) {
+      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 300);
+    }
+  }, [sidebarOpen]);
 
-    const userIcon = L.divIcon({
-      className: '',
-      html: `<div style="
-        width:20px;height:20px;border-radius:50%;
-        background:#4895ef;border:3px solid white;
-        box-shadow:0 0 0 5px rgba(72,149,239,0.35);
-      "></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
-    });
-
-    const marker = L.marker([position.lat, position.lng], { icon: userIcon, zIndexOffset: 1000 })
-      .addTo(map)
-      .bindPopup('<div style="font-weight:700;color:#1a1a2e;font-size:13px">📍 Your Location</div>');
-
-    map.setView([position.lat, position.lng], 13);
-
-    return () => {
-      map.removeLayer(marker);
-    };
-  }, [mapReady, position]);
+  // Get user location
+  const getUserLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        setLocationError('');
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([latitude, longitude], 12);
+          mapInstanceRef.current.invalidateSize();
+        }
+      },
+      () => {
+        setLocationError('Unable to retrieve your location.');
+      }
+    );
+  }, []);
 
   // Add hospital markers
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current || !hospitalsWithDistance.length) return;
-    const map = mapInstanceRef.current;
-    const markers: any[] = [];
-    markerRefs.current = {};
+    if (!mapReady || !mapInstanceRef.current) return;
+    const L = getL();
+    if (!L) return;
 
-    hospitalsWithDistance.forEach((h, idx) => {
-      if (!h.lat || !h.lng) return;
-      const beds = Number(h.bedsAvailable);
-      const color = getBedColor(beds);
-      const isNearest = idx === 0 && position !== null;
-      const size = isNearest ? 36 : 28;
+    hospitalMarkersRef.current.forEach(m => { try { m.remove(); } catch (_) { /* ignore */ } });
+    hospitalMarkersRef.current = [];
+
+    hospitals.forEach(hospital => {
+      if (!mapInstanceRef.current) return;
+      const beds = Number(hospital.bedsAvailable);
+      const bedsColor = beds > 20 ? '#22c55e' : beds > 5 ? '#f59e0b' : '#ef4444';
 
       const icon = L.divIcon({
+        html: `<div style="background:#ef4444;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
         className: '',
-        html: `<div style="
-          width:${size}px;height:${size}px;border-radius:${isNearest ? '50%' : '8px'};
-          background:${color};border:${isNearest ? '3px' : '2px'} solid white;
-          display:flex;align-items:center;justify-content:center;
-          font-size:${isNearest ? '18px' : '14px'};
-          box-shadow:${isNearest ? '0 0 0 4px rgba(255,255,255,0.25), 0 4px 12px rgba(0,0,0,0.5)' : '0 2px 8px rgba(0,0,0,0.4)'};
-        ">🏥</div>`,
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
       });
 
-      const distanceHtml = h.distance !== null
-        ? `<span style="color:#4895ef;font-weight:600;font-size:12px">📏 ${formatDistance(h.distance)} away</span><br/>`
+      const distanceText = userLocation
+        ? `<p style="margin:4px 0;font-size:12px;color:#6b7280;">📍 ${haversineDistance(
+            userLocation.lat, userLocation.lng, hospital.lat, hospital.lng
+          ).toFixed(1)} km away</p>`
         : '';
 
-      const nearestBadge = isNearest
-        ? `<span style="background:#4895ef;color:white;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:700">NEAREST</span><br/>`
-        : '';
+      const directionsUrl = userLocation
+        ? `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${hospital.lat},${hospital.lng}`
+        : `https://www.google.com/maps/search/?api=1&query=${hospital.lat},${hospital.lng}`;
 
-      const marker = L.marker([h.lat, h.lng], { icon })
-        .addTo(map)
-        .bindPopup(`
-          <div style="min-width:180px;font-family:sans-serif">
-            ${nearestBadge}
-            <strong style="color:#1a1a2e;font-size:14px">${h.name}</strong><br/>
-            <span style="color:#666;font-size:12px">${h.address}</span><br/>
-            <span style="color:${color};font-weight:700;font-size:12px">🛏 ${beds} beds — ${getBedLabel(beds)}</span><br/>
-            ${distanceHtml}
-            ${h.contact ? `<a href="tel:${h.contact}" style="color:#4895ef;font-size:12px;text-decoration:none">📞 ${h.contact}</a>` : ''}
-          </div>
-        `);
-
-      markers.push(marker);
-      markerRefs.current[Number(h.id)] = marker;
+      const marker = L.marker([hospital.lat, hospital.lng], { icon });
+      marker.bindPopup(`
+        <div style="min-width:200px;font-family:sans-serif;">
+          <h3 style="margin:0 0 6px;font-size:15px;font-weight:700;color:#111;">${hospital.name}</h3>
+          <p style="margin:4px 0;font-size:12px;color:#6b7280;">📍 ${hospital.address}</p>
+          ${distanceText}
+          <p style="margin:4px 0;font-size:12px;">
+            <span style="color:${bedsColor};font-weight:600;">🛏 ${beds} beds available</span>
+          </p>
+          <p style="margin:4px 0;font-size:12px;color:#6b7280;">📞 ${hospital.contact}</p>
+          <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer"
+            style="display:inline-block;margin-top:8px;padding:5px 12px;background:#3b82f6;color:white;border-radius:6px;font-size:12px;text-decoration:none;">
+            Get Directions
+          </a>
+        </div>
+      `);
+      marker.addTo(mapInstanceRef.current);
+      hospitalMarkersRef.current.push(marker);
     });
+  }, [mapReady, hospitals, userLocation]);
 
-    return () => {
-      markers.forEach(m => map.removeLayer(m));
-      markerRefs.current = {};
-    };
-  }, [mapReady, hospitalsWithDistance, position]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Add blood donor city markers
+  // Add volunteer markers
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current || !donors?.length) return;
-    const map = mapInstanceRef.current;
-    const markers: any[] = [];
+    if (!mapReady || !mapInstanceRef.current) return;
+    const L = getL();
+    if (!L) return;
 
-    const cityRecord: Record<string, CityEntry> = {};
-    donors.forEach(d => {
-      const key = d.city.toLowerCase().trim();
-      if (!cityRecord[key]) {
-        cityRecord[key] = { city: d.city, count: 0, types: [] };
-      }
-      cityRecord[key].count++;
-      if (!cityRecord[key].types.includes(d.bloodType)) {
-        cityRecord[key].types.push(d.bloodType);
-      }
-    });
+    volunteerMarkersRef.current.forEach(m => { try { m.remove(); } catch (_) { /* ignore */ } });
+    volunteerMarkersRef.current = [];
 
-    Object.values(cityRecord).forEach(({ city, count, types }) => {
-      const coords = getCityCoords(city);
+    volunteers.forEach(volunteer => {
+      if (!mapInstanceRef.current) return;
+      const coords = getCityCoords(volunteer.city);
       if (!coords) return;
 
+      // Small random jitter so volunteers in the same city don't stack exactly
+      const jitter = () => (Math.random() - 0.5) * 0.05;
+      const lat = coords[0] + jitter();
+      const lng = coords[1] + jitter();
+
+      const bgColor = volunteer.isActive ? '#22c55e' : '#94a3b8';
       const icon = L.divIcon({
-        className: '',
-        html: `<div style="
-          width:26px;height:26px;border-radius:50%;
-          background:#e63946;border:2px solid white;
-          display:flex;align-items:center;justify-content:center;
-          font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.4);
-        ">🩸</div>`,
+        html: `<div style="background:${bgColor};width:26px;height:26px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;">👤</div>`,
         iconSize: [26, 26],
         iconAnchor: [13, 13],
+        className: '',
       });
 
-      const marker = L.marker(coords, { icon })
-        .addTo(map)
-        .bindPopup(`
-          <div style="min-width:140px;font-family:sans-serif">
-            <strong style="color:#1a1a2e;font-size:14px">📍 ${city}</strong><br/>
-            <span style="color:#e63946;font-weight:700;font-size:12px">${count} donor${count !== 1 ? 's' : ''}</span><br/>
-            <span style="color:#555;font-size:12px">Types: ${types.join(', ')}</span>
-          </div>
-        `);
-      markers.push(marker);
+      const skillBadges = volunteer.skills
+        .map(s => `<span style="display:inline-block;padding:2px 8px;background:#e0f2fe;color:#0369a1;border-radius:999px;font-size:11px;margin:2px;">${s}</span>`)
+        .join('');
+
+      const marker = L.marker([lat, lng], { icon });
+      marker.bindPopup(`
+        <div style="min-width:190px;font-family:sans-serif;">
+          <h3 style="margin:0 0 4px;font-size:15px;font-weight:700;color:#111;">${volunteer.name}</h3>
+          <p style="margin:4px 0;font-size:12px;color:#6b7280;">📍 ${volunteer.city}</p>
+          <p style="margin:4px 0;font-size:12px;">
+            <span style="color:${bgColor};font-weight:600;">${volunteer.isActive ? '✅ Available' : '⏸ Unavailable'}</span>
+          </p>
+          <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px;">${skillBadges}</div>
+        </div>
+      `);
+      marker.addTo(mapInstanceRef.current);
+      volunteerMarkersRef.current.push(marker);
     });
+  }, [mapReady, volunteers]);
 
-    return () => {
-      markers.forEach(m => map.removeLayer(m));
-    };
-  }, [mapReady, donors]);
+  // Sorted hospitals by distance
+  const sortedHospitals = [...hospitals].sort((a, b) => {
+    if (!userLocation) return 0;
+    const da = haversineDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
+    const db = haversineDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
+    return da - db;
+  });
 
-  const flyToHospital = useCallback((h: HospitalWithDistance) => {
-    if (!mapInstanceRef.current) return;
-    mapInstanceRef.current.setView([h.lat, h.lng], 15, { animate: true });
-    const marker = markerRefs.current[Number(h.id)];
-    if (marker) {
-      setTimeout(() => marker.openPopup(), 400);
+  const volunteersWithCoords = volunteers.filter(v => getCityCoords(v.city) !== null);
+  const volunteersWithoutCoords = volunteers.filter(v => getCityCoords(v.city) === null);
+
+  const focusHospital = (lat: number, lng: number) => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([lat, lng], 14);
+      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100);
     }
-  }, []);
+  };
+
+  const focusVolunteer = (city: string) => {
+    const coords = getCityCoords(city);
+    if (coords && mapInstanceRef.current) {
+      mapInstanceRef.current.setView(coords, 12);
+      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100);
+    }
+  };
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
-      {/* Header bar */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-3 flex items-center justify-between"
-        style={{ background: 'rgba(20,20,31,0.95)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
-            <MapIcon className="w-4 h-4" />
-            Emergency Resources Map
+    <div className="flex h-[calc(100vh-64px)] relative overflow-hidden bg-background">
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading map data...</p>
           </div>
-          {geoLoading && (
-            <span className="flex items-center gap-1.5 text-blue-400 text-xs">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              Locating you…
-            </span>
-          )}
-          {position && !geoLoading && (
-            <span className="flex items-center gap-1.5 text-green-400 text-xs">
-              <Navigation className="w-3 h-3" />
-              Location found
-            </span>
-          )}
-          {geoError && !geoLoading && !position && (
-            <span className="flex items-center gap-1.5 text-red-400 text-xs">
-              <AlertCircle className="w-3 h-3" />
-              Location unavailable
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!position && !geoLoading && (
-            <button
-              onClick={() => requestLocation().catch(() => {})}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all"
-              style={{ background: 'rgba(72,149,239,0.25)', border: '1px solid rgba(72,149,239,0.4)' }}
-            >
-              <MapPin className="w-3 h-3" />
-              Enable Location
-            </button>
-          )}
-          <button
-            onClick={() => setSidebarOpen(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 transition-all"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            {sidebarOpen ? 'Hide' : 'Show'} Hospitals
-          </button>
-        </div>
-      </div>
-
-      {/* Geolocation error banner */}
-      {geoError && !geoLoading && !position && (
-        <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm text-amber-300"
-          style={{ background: 'rgba(244,162,97,0.1)', borderBottom: '1px solid rgba(244,162,97,0.2)' }}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>Please enable location access in your browser to see nearby hospitals and distances.</span>
         </div>
       )}
 
-      {/* Main content: map + sidebar */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Hospital sidebar */}
+      {/* Sidebar */}
+      <div
+        className={`relative z-10 flex flex-col bg-card border-r border-border transition-all duration-300 ${
+          sidebarOpen ? 'w-80' : 'w-0 overflow-hidden'
+        }`}
+      >
         {sidebarOpen && (
-          <div
-            className="flex-shrink-0 flex flex-col overflow-hidden"
-            style={{
-              width: '280px',
-              background: '#0f0f1a',
-              borderRight: '1px solid rgba(255,255,255,0.08)',
-            }}
-          >
-            <div className="flex-shrink-0 px-3 py-2.5"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-white font-semibold text-sm">
-                Nearby Hospitals
-                {hospitalsWithDistance.length > 0 && (
-                  <span className="ml-2 text-gray-500 font-normal text-xs">
-                    ({hospitalsWithDistance.length})
-                  </span>
-                )}
-              </p>
-              {position && (
-                <p className="text-gray-500 text-xs mt-0.5">Sorted by distance from you</p>
+          <div className="flex flex-col h-full">
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-border space-y-3">
+              <h2 className="font-bold text-lg text-foreground">Resource Map</h2>
+
+              {/* Location button */}
+              <button
+                onClick={getUserLocation}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-border hover:bg-muted transition-colors text-foreground"
+              >
+                <Navigation className="w-4 h-4" />
+                {userLocation ? 'Update My Location' : 'Use My Location'}
+              </button>
+              {locationError && (
+                <p className="text-xs text-destructive">{locationError}</p>
               )}
-              {!position && (
-                <p className="text-gray-500 text-xs mt-0.5">Enable location for distances</p>
-              )}
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {hospitalsWithDistance.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-32 text-gray-600 text-sm px-4 text-center">
-                  <MapPin className="w-6 h-6 mb-2 opacity-40" />
-                  No hospitals registered yet
-                </div>
-              ) : (
-                hospitalsWithDistance.map((h, idx) => {
-                  const beds = Number(h.bedsAvailable);
-                  const bedColor = getBedColor(beds);
-                  const isNearest = idx === 0 && position !== null;
-
-                  return (
-                    <button
-                      key={Number(h.id)}
-                      onClick={() => flyToHospital(h)}
-                      className="w-full text-left px-3 py-2.5 transition-all hover:bg-white/5 focus:outline-none"
-                      style={{
-                        borderBottom: '1px solid rgba(255,255,255,0.05)',
-                        background: isNearest ? 'rgba(72,149,239,0.08)' : undefined,
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            {isNearest && (
-                              <span
-                                className="text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                                style={{ background: '#4895ef', color: 'white', fontSize: '9px' }}
-                              >
-                                NEAREST
-                              </span>
-                            )}
-                            <span className="text-white text-xs font-semibold truncate">{h.name}</span>
-                          </div>
-                          <p className="text-gray-500 text-xs truncate">{h.address}</p>
-                        </div>
-                        {h.distance !== null && (
-                          <span className="text-blue-400 text-xs font-medium flex-shrink-0">
-                            {formatDistance(h.distance)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <div className="flex items-center gap-1">
-                          <BedDouble className="w-3 h-3" style={{ color: bedColor }} />
-                          <span className="text-xs font-semibold" style={{ color: bedColor }}>
-                            {beds} beds
-                          </span>
-                        </div>
-                        {h.contact && (
-                          <div className="flex items-center gap-1 text-gray-500">
-                            <Phone className="w-3 h-3" />
-                            <span className="text-xs truncate">{h.contact}</span>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Sidebar stats */}
-            <div className="flex-shrink-0 grid grid-cols-2 gap-px"
-              style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
-              <div className="px-3 py-2 text-center" style={{ background: '#0f0f1a' }}>
-                <p className="text-blue-400 font-bold text-lg">{hospitalsWithDistance.length}</p>
-                <p className="text-gray-500 text-xs">Hospitals</p>
-              </div>
-              <div className="px-3 py-2 text-center" style={{ background: '#0f0f1a' }}>
-                <p className="text-green-400 font-bold text-lg">
-                  {hospitalsWithDistance.reduce((s, h) => s + Number(h.bedsAvailable), 0)}
+              {userLocation && (
+                <p className="text-xs text-muted-foreground">
+                  📍 Location active — showing nearest first
                 </p>
-                <p className="text-gray-500 text-xs">Total Beds</p>
+              )}
+
+              {/* Tabs */}
+              <div className="flex rounded-lg overflow-hidden border border-border">
+                <button
+                  onClick={() => setActiveTab('hospitals')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
+                    activeTab === 'hospitals'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-background text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  Hospitals ({hospitals.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('volunteers')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
+                    activeTab === 'volunteers'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-background text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  Volunteers ({volunteers.length})
+                </button>
               </div>
             </div>
+
+            {/* Legend */}
+            <div className="px-4 py-2 border-b border-border bg-muted/30">
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                {activeTab === 'hospitals' ? (
+                  <>
+                    <span className="flex items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> &gt;20 beds
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" /> 5–20 beds
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> &lt;5 beds
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> Active
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-slate-400 inline-block" /> Inactive
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Sidebar Content */}
+            <ScrollArea className="flex-1">
+              <div className="p-3 space-y-2">
+                {activeTab === 'hospitals' ? (
+                  sortedHospitals.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      <Building2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      No hospitals available
+                    </div>
+                  ) : (
+                    sortedHospitals.map(hospital => {
+                      const dist = userLocation
+                        ? haversineDistance(userLocation.lat, userLocation.lng, hospital.lat, hospital.lng)
+                        : null;
+                      const beds = Number(hospital.bedsAvailable);
+                      const bedsColor =
+                        beds > 20 ? 'text-green-600' : beds > 5 ? 'text-amber-600' : 'text-red-600';
+
+                      return (
+                        <button
+                          key={String(hospital.id)}
+                          onClick={() => focusHospital(hospital.lat, hospital.lng)}
+                          className="w-full text-left p-3 rounded-lg border border-border hover:border-primary hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm text-foreground truncate">{hospital.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{hospital.address}</p>
+                            </div>
+                            {dist !== null && (
+                              <span className="text-xs text-muted-foreground shrink-0">{dist.toFixed(1)} km</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className={`text-xs font-semibold ${bedsColor}`}>
+                              🛏 {hospital.bedsAvailable} beds
+                            </span>
+                            <span className="text-xs text-muted-foreground">📞 {hospital.contact}</span>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )
+                ) : (
+                  <>
+                    {volunteers.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        No volunteers registered yet
+                      </div>
+                    ) : (
+                      <>
+                        {volunteersWithCoords.map(volunteer => (
+                          <button
+                            key={String(volunteer.id)}
+                            onClick={() => focusVolunteer(volunteer.city)}
+                            className="w-full text-left p-3 rounded-lg border border-border hover:border-primary hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm text-foreground">{volunteer.name}</p>
+                                <p className="text-xs text-muted-foreground">📍 {volunteer.city}</p>
+                              </div>
+                              <Badge
+                                variant={volunteer.isActive ? 'default' : 'secondary'}
+                                className="text-xs shrink-0"
+                              >
+                                {volunteer.isActive ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {volunteer.skills.slice(0, 3).map(skill => (
+                                <span
+                                  key={skill}
+                                  className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                              {volunteer.skills.length > 3 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{volunteer.skills.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+
+                        {volunteersWithoutCoords.length > 0 && (
+                          <div className="mt-3">
+                            <div className="flex items-center gap-1.5 px-1 mb-2">
+                              <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                              <p className="text-xs text-muted-foreground">
+                                {volunteersWithoutCoords.length} volunteer(s) with unknown city:
+                              </p>
+                            </div>
+                            {volunteersWithoutCoords.map(volunteer => (
+                              <div
+                                key={String(volunteer.id)}
+                                className="p-3 rounded-lg border border-dashed border-border bg-muted/20"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="font-medium text-sm text-foreground">{volunteer.name}</p>
+                                    <p className="text-xs text-muted-foreground">📍 {volunteer.city}</p>
+                                  </div>
+                                  <Badge
+                                    variant={volunteer.isActive ? 'default' : 'secondary'}
+                                    className="text-xs shrink-0"
+                                  >
+                                    {volunteer.isActive ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {volunteer.skills.slice(0, 3).map(skill => (
+                                    <span
+                                      key={skill}
+                                      className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full"
+                                    >
+                                      {skill}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </ScrollArea>
           </div>
         )}
+      </div>
 
-        {/* Map area */}
-        <div className="flex-1 relative overflow-hidden">
-          {!leafletReady ? (
-            <div className="w-full h-full flex items-center justify-center" style={{ background: '#14141f' }}>
-              <div className="text-center text-gray-400">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                <p className="text-sm">Loading map…</p>
-              </div>
-            </div>
-          ) : (
-            <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-          )}
+      {/* Sidebar toggle button */}
+      <button
+        onClick={() => setSidebarOpen(prev => !prev)}
+        className="absolute top-1/2 -translate-y-1/2 z-20 bg-card border border-border rounded-r-lg p-1.5 shadow-md hover:bg-muted transition-colors"
+        style={{ left: sidebarOpen ? '320px' : '0px' }}
+      >
+        {sidebarOpen ? (
+          <ChevronLeft className="w-4 h-4 text-foreground" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-foreground" />
+        )}
+      </button>
 
-          {/* Map legend overlay */}
-          <div
-            className="absolute bottom-4 right-4 z-[1000] rounded-xl p-3 flex flex-col gap-1.5"
-            style={{ background: 'rgba(15,15,26,0.92)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}
-          >
-            <p className="text-gray-400 text-xs font-semibold mb-0.5">Legend</p>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: '#4895ef', border: '2px solid white' }} />
-              Your Location
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <div className="w-4 h-4 rounded flex-shrink-0" style={{ background: '#52b788', border: '2px solid white' }} />
-              Hospital (&gt;50 beds)
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <div className="w-4 h-4 rounded flex-shrink-0" style={{ background: '#f4a261', border: '2px solid white' }} />
-              Hospital (10–50 beds)
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <div className="w-4 h-4 rounded flex-shrink-0" style={{ background: '#e63946', border: '2px solid white' }} />
-              Hospital (&lt;10 beds)
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: '#e63946', border: '2px solid white' }} />
-              Blood Donors
-            </div>
+      {/* Map container */}
+      <div className="flex-1 relative">
+        <div
+          ref={mapRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1,
+          }}
+        />
+
+        {/* Map legend overlay */}
+        <div className="absolute bottom-6 right-4 z-10 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg text-xs space-y-1.5">
+          <p className="font-semibold text-foreground mb-1">Map Legend</p>
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-red-500 inline-block shrink-0" />
+            <span className="text-muted-foreground">Hospital</span>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-green-500 inline-block shrink-0" />
+            <span className="text-muted-foreground">Active Volunteer</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-slate-400 inline-block shrink-0" />
+            <span className="text-muted-foreground">Inactive Volunteer</span>
+          </div>
+          {userLocation && (
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-blue-500 shrink-0" />
+              <span className="text-muted-foreground">Your Location</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

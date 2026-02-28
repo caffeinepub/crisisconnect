@@ -1,79 +1,56 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T05:01:27.510Z",
+  "generatedAt": "2026-02-28T06:56:00.487Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
-    "implemented": 3,
+    "total": 2,
+    "implemented": 2,
     "items": [
       {
-        "id": "REQ-16",
-        "summary": "When the SOS button is triggered by an unauthenticated (pre-login) user, immediately prompt the browser to initiate a phone call to the universal emergency number (e.g., tel:112 or tel:911). Display a modal with a visible 'Call Emergency Services' button (rendered as an <a href='tel:112'> link) so the user can connect directly to emergency services without needing an account. The existing countdown/cancel flow should still capture geolocation and record the SOS event in the backend (anonymously), but the primary CTA must be the emergency call link.",
+        "id": "REQ-29",
+        "summary": "Fix the volunteer registration form on VolunteerPage so that submitting a new volunteer record (name, skills, city, availability status) correctly calls the backend mutation and persists the data. After a successful submission, the volunteer must appear in the volunteer directory list without requiring a page reload. Display a success message on successful registration and a clear error message if the submission fails.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/sos/SOSModal.tsx"
+          "frontend/src/pages/VolunteerPage.tsx",
+          "frontend/src/hooks/useQueries.ts"
         ],
         "matchedFiles": [
-          "frontend/src/components/sos/SOSModal.tsx"
+          "frontend/src/pages/VolunteerPage.tsx",
+          "frontend/src/hooks/useQueries.ts"
         ]
       },
       {
-        "id": "REQ-17",
-        "summary": "Add an Emergency Contacts management feature for authenticated users. Provide a dedicated page or settings section (accessible from the navigation bar or user profile area) where a logged-in user can add, view, and remove emergency contacts. Each contact record must include: full name, phone number, and relationship (e.g., family, friend, colleague). Store emergency contacts in the backend associated with the authenticated user's principal ID.",
+        "id": "REQ-30",
+        "summary": "Add volunteer markers to the ResourceMapPage Leaflet map. For each registered volunteer who has a city that can be geocoded or who has lat/lng coordinates stored in the backend, display a distinct marker (visually different from hospital markers) on the map. Each volunteer marker popup must show the volunteer's name, city, skills (as badges), and availability status. Volunteers should be fetched from the backend using the existing useGetVolunteers query hook. If volunteer records do not contain lat/lng coordinates, derive approximate positions from their city field using a best-effort approach or display them in a dedicated sidebar section listing volunteers near the user.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/EmergencyContactsPage.tsx",
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/App.tsx",
-          "frontend/src/components/layout/AppLayout.tsx"
+          "frontend/src/pages/ResourceMapPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/EmergencyContactsPage.tsx",
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/App.tsx",
-          "frontend/src/components/layout/AppLayout.tsx"
+          "frontend/src/pages/ResourceMapPage.tsx"
         ]
-      },
-      {
-        "id": "REQ-18",
-        "summary": "When an authenticated user triggers the SOS button, after the countdown completes: (1) retrieve the user's stored emergency contacts from the backend and display them in the SOS confirmation modal as a list of 'Notify' entries showing each contact's name and phone number as a tel: call link; (2) also display a prominent 'Call Emergency Services (112)' tel: link button alongside the contacts. The SOS event must still be recorded in the backend with timestamp, geolocation coordinates, and the authenticated user's identity. Make it clear in the UI which contacts will be notified (via manual call links, since automated SMS/push is not supported) and provide a direct dial button for each.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/sos/SOSModal.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/sos/SOSModal.tsx"
-        ]
-      },
-      {
-        "id": "REQ-19",
-        "summary": "Extend the backend Motoko actor to support emergency contacts storage. Add a stable data structure to store emergency contacts keyed by user principal, where each contact has: id (generated), ownerPrincipal, name (Text), phone (Text), relationship (Text), and createdAt (Int timestamp). Expose the following update/query functions: addEmergencyContact (authenticated, adds a contact for the caller's principal), removeEmergencyContact (authenticated, removes by contact id for the caller's principal), getMyEmergencyContacts (authenticated query, returns the caller's contacts), and getEmergencyContactsByPrincipal (admin/internal query, returns contacts for a given principal for use during SOS dispatch).",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
-    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/App.tsx",
-    "frontend/src/backend.d.ts",
-    "frontend/src/backend.ts",
-    "frontend/src/components/layout/AppLayout.tsx",
+    "frontend/src/components/alerts/AlertFeed.tsx",
     "frontend/src/components/sos/SOSModal.tsx",
-    "frontend/src/declarations/backend.did.d.ts",
-    "frontend/src/declarations/backend.did.js",
     "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/BloodDonorPage.tsx",
+    "frontend/src/pages/DashboardPage.tsx",
     "frontend/src/pages/EmergencyContactsPage.tsx",
+    "frontend/src/pages/HospitalFinderPage.tsx",
+    "frontend/src/pages/ResourceMapPage.tsx",
+    "frontend/src/pages/VolunteerPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",
