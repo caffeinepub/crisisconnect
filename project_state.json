@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 13,
+  "projectStateVersion": 15,
   "summary": "CrisisConnect – AI Emergency Response & Resource Mapper web app. Detects user location, shows nearest hospitals, available blood donors, sends emergency alerts to nearby volunteers, and includes an AI chatbot for first-aid guidance. Features an SOS button (accessible before and after login) with extraordinary/advanced features. Tech stack: React/Tailwind frontend, Node.js/Firebase backend, Google Maps API, OpenAI API.",
   "architectural_notes": [
     "Frontend: React with Tailwind CSS",
@@ -241,6 +241,14 @@
         "REQ-30"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-remove-the-built-with-using-caffeine-ai-footer-text-from-all-pages-search-all-frontend-layout-and-page-components-including-applayout-tsx-loginpage-tsx-and-any-other-page-level-files-for-any-element-rendering-this-text-and-delete-it-entirely-no-footer-attribution-should-appear-anywhere-in-the-application",
+      "title": "Remove the 'Built with using caffeine.ai' footer text from all pages. Search all frontend layout and page components (including AppLayout.tsx, LoginPage.tsx, and any other page-level files) for any element rendering this text and delete it entirely. No footer attribution should appear anywhere in the application.",
+      "reqIds": [
+        "REQ-31"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -341,6 +349,12 @@
     {
       "id": "AR-29",
       "summary": "Show volunteers on the ResourceMapPage map as markers, similar to hospitals",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-30",
+      "summary": "Remove 'Built with using caffeine.ai' footer text from all pages",
       "reqIds": [],
       "status": "pending"
     }

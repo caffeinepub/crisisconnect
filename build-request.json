@@ -1,60 +1,36 @@
 {
   "kind": "build_request",
-  "title": "Fix volunteer registration and add volunteer markers to ResourceMapPage",
+  "title": "Remove 'Built with using caffeine.ai' footer from all pages",
   "projectName": "CrisisConnect",
-  "priority": "high",
+  "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-29",
-      "text": "Fix the volunteer registration form on VolunteerPage so that submitting a new volunteer record (name, skills, city, availability status) correctly calls the backend mutation and persists the data. After a successful submission, the volunteer must appear in the volunteer directory list without requiring a page reload. Display a success message on successful registration and a clear error message if the submission fails.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "while adding the volunteers it doesn't add"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Submitting the volunteer registration form calls the backend addVolunteer (or equivalent) mutation with the correct payload.",
-        "On success, the new volunteer appears in the volunteer directory list immediately (React Query cache is invalidated/refetched).",
-        "A success notification or inline message is shown after a volunteer is successfully added.",
-        "If the mutation fails, a visible error message is displayed and the form data is preserved.",
-        "The volunteer count on the Dashboard stat card reflects the newly added volunteer."
-      ]
-    },
-    {
-      "id": "REQ-30",
-      "text": "Add volunteer markers to the ResourceMapPage Leaflet map. For each registered volunteer who has a city that can be geocoded or who has lat/lng coordinates stored in the backend, display a distinct marker (visually different from hospital markers) on the map. Each volunteer marker popup must show the volunteer's name, city, skills (as badges), and availability status. Volunteers should be fetched from the backend using the existing useGetVolunteers query hook. If volunteer records do not contain lat/lng coordinates, derive approximate positions from their city field using a best-effort approach or display them in a dedicated sidebar section listing volunteers near the user.",
+      "id": "REQ-31",
+      "text": "Remove the 'Built with using caffeine.ai' footer text from all pages. Search all frontend layout and page components (including AppLayout.tsx, LoginPage.tsx, and any other page-level files) for any element rendering this text and delete it entirely. No footer attribution should appear anywhere in the application.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-4"
         ],
         "quotes": [
-          "also make the map also"
+          "in bottom of all pages it shows \"Built with using caffeine.ai\" remove that from all pages"
         ]
       },
       "acceptanceCriteria": [
-        "The ResourceMapPage fetches volunteer data from the backend and renders volunteer markers (or a sidebar volunteer list) on/alongside the Leaflet map.",
-        "Volunteer markers are visually distinct from hospital markers (different color or icon).",
-        "Clicking a volunteer marker opens a popup showing the volunteer's name, city, skills, and availability status.",
-        "The sidebar or map includes a section or legend distinguishing hospitals from volunteers.",
-        "The map does not break or throw errors if no volunteer location data is available; a graceful fallback (e.g., sidebar list of volunteers) is shown instead."
+        "No page in the application displays the text 'Built with using caffeine.ai' or any variation of it.",
+        "The footer element or container that held this text is also removed if it served no other purpose.",
+        "All pages — including the login page, dashboard, hospital finder, blood donor, volunteer, resource map, emergency contacts, and any other routes — are free of this attribution text.",
+        "No other visible content or layout is affected by the removal."
       ]
     }
   ],
   "constraints": [
-    "Do not modify any files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
-    "All Motoko backend logic must remain in the single actor file backend/main.mo.",
-    "Use the existing useGetVolunteers and useAddVolunteer (or equivalent) hooks from frontend/src/hooks/useQueries.ts rather than creating new query infrastructure."
+    "Do not modify any files listed under frontend.immutablePaths.",
+    "Do not alter any other UI content, layout, or styling beyond removing the attribution footer text."
   ],
   "nonGoals": [
-    "Adding GPS/geocoding API integration — volunteer location approximation should be best-effort from existing city field.",
-    "Real-time push notifications for volunteer availability changes.",
-    "Modifying the volunteer data model to add new required fields not already present in the backend schema.",
-    "Changing the existing hospital marker behavior or sidebar logic on ResourceMapPage."
+    "Adding any replacement footer content.",
+    "Changing any other part of the application UI or functionality."
   ],
   "imageRequirements": {
     "required": [],

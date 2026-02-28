@@ -7,7 +7,7 @@
   "frontend/src/hooks/useQueries.ts": "React Query hooks for all backend interactions including user profile, dashboard stats, hospitals, blood donors, volunteers (with corrected BigInt id payload), emergency alerts, SOS events, and emergency contacts with toast notifications.",
   "frontend/src/components/sos/SOSModal.tsx": "SOS modal with countdown, geolocation, and backend recording; fixed to call `useGetMyEmergencyContacts()` with no arguments and `recordSOS.mutateAsync` with only `lat`/`lng` fields (matching the updated Omit type).",
   "frontend/src/pages/EmergencyContactsPage.tsx": "Emergency contacts management page updated to call `useGetMyEmergencyContacts()` with no arguments, matching the updated hook signature.",
-  "frontend/src/components/layout/AppLayout.tsx": "App shell with sticky header, navigation (now including \"Emergency Contacts\" link with Phone icon), SOS button, user profile display, logout, mobile menu, footer, profile setup modal, chatbot, and toast provider.",
+  "frontend/src/components/layout/AppLayout.tsx": "App shell with sticky header, navigation (including \"Emergency Contacts\" link), SOS button, user profile display, logout, mobile menu, footer (copyright only, attribution removed), profile setup modal, chatbot, and toast provider.",
   "frontend/src/components/alerts/AlertFeed.tsx": "Alert feed component that displays emergency alerts using the renamed `useGetEmergencyAlerts` hook with loading skeletons and time-ago formatting.",
   "frontend/src/pages/DashboardPage.tsx": "Dashboard page updated to use the renamed `useGetDashboardStats` hook for displaying live emergency resource statistics."
 }

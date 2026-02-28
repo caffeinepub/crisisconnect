@@ -1,56 +1,41 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T06:56:00.487Z",
+  "generatedAt": "2026-02-28T07:01:39.874Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 2,
-    "implemented": 2,
+    "total": 1,
+    "implemented": 1,
     "items": [
       {
-        "id": "REQ-29",
-        "summary": "Fix the volunteer registration form on VolunteerPage so that submitting a new volunteer record (name, skills, city, availability status) correctly calls the backend mutation and persists the data. After a successful submission, the volunteer must appear in the volunteer directory list without requiring a page reload. Display a success message on successful registration and a clear error message if the submission fails.",
+        "id": "REQ-31",
+        "summary": "Remove the 'Built with using caffeine.ai' footer text from all pages. Search all frontend layout and page components (including AppLayout.tsx, LoginPage.tsx, and any other page-level files) for any element rendering this text and delete it entirely. No footer attribution should appear anywhere in the application.",
         "status": "implemented",
         "plannedFiles": [
+          "frontend/src/components/layout/AppLayout.tsx",
+          "frontend/src/pages/LoginPage.tsx",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/pages/HospitalFinderPage.tsx",
+          "frontend/src/pages/BloodDonorPage.tsx",
           "frontend/src/pages/VolunteerPage.tsx",
-          "frontend/src/hooks/useQueries.ts"
+          "frontend/src/pages/ResourceMapPage.tsx",
+          "frontend/src/pages/EmergencyContactsPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/VolunteerPage.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ]
-      },
-      {
-        "id": "REQ-30",
-        "summary": "Add volunteer markers to the ResourceMapPage Leaflet map. For each registered volunteer who has a city that can be geocoded or who has lat/lng coordinates stored in the backend, display a distinct marker (visually different from hospital markers) on the map. Each volunteer marker popup must show the volunteer's name, city, skills (as badges), and availability status. Volunteers should be fetched from the backend using the existing useGetVolunteers query hook. If volunteer records do not contain lat/lng coordinates, derive approximate positions from their city field using a best-effort approach or display them in a dedicated sidebar section listing volunteers near the user.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/pages/ResourceMapPage.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/pages/ResourceMapPage.tsx"
+          "frontend/src/components/layout/AppLayout.tsx"
         ]
       }
     ]
   },
   "changedFiles": [
-    "backend/main.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/alerts/AlertFeed.tsx",
-    "frontend/src/components/sos/SOSModal.tsx",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/BloodDonorPage.tsx",
-    "frontend/src/pages/DashboardPage.tsx",
-    "frontend/src/pages/EmergencyContactsPage.tsx",
-    "frontend/src/pages/HospitalFinderPage.tsx",
-    "frontend/src/pages/ResourceMapPage.tsx",
-    "frontend/src/pages/VolunteerPage.tsx",
+    "frontend/src/components/layout/AppLayout.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

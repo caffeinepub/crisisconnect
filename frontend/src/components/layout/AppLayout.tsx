@@ -190,21 +190,10 @@ export default function AppLayout() {
       {/* Footer */}
       <footer className="border-t py-6 px-4"
         style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(13,13,20,0.8)' }}>
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-500">
+        <div className="max-w-7xl mx-auto flex items-center justify-center text-sm text-gray-500">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-red-400" />
             <span>© {new Date().getFullYear()} CrisisConnect. All rights reserved.</span>
-          </div>
-          <div className="flex items-center gap-1">
-            Built with <span className="text-red-400 mx-1">♥</span> using{' '}
-            <a
-              href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname || 'crisisconnect')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-amber-400 hover:text-amber-300 transition-colors ml-1"
-            >
-              caffeine.ai
-            </a>
           </div>
         </div>
       </footer>
